@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GTA San Andreas - Play!.js</title>
+  <link rel="stylesheet" href="main.5a525eca.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
+    .global-row, .global-column { display: contents; }
+    .global-column:last-child { display: none; }
+    #outputCanvas {
+      position: fixed !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      width: min(100vw, calc(100vh * 4 / 3)) !important;
+      height: min(100vh, calc(100vw * 3 / 4)) !important;
+      z-index: 1;
+      image-rendering: auto;
+    }
+    #root, #root * {
+      position: fixed !important;
+      overflow: hidden !important;
+      width: 0 !important;
+      height: 0 !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+    #autoload-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-family: system-ui, sans-serif;
+      font-size: 1.2rem;
+    }
+    #autoload-overlay .progress {
+      text-align: center;
+    }
+    #autoload-overlay .bar-track {
+      width: 300px;
+      height: 4px;
+      background: #222;
+      border-radius: 2px;
+      margin-top: 12px;
+    }
+    #autoload-overlay .bar-fill {
+      height: 100%;
+      background: #fff;
+      border-radius: 2px;
+      width: 0%;
+      transition: width 0.2s;
+    }
+  </style>
+</head>
+<body>
+  <div id="autoload-overlay">
+    <div class="progress">
+      <div id="autoload-status">Loading gtasan.ISO...</div>
+      <div class="bar-track"><div class="bar-fill" id="autoload-bar"></div></div>
+    </div>
+  </div>
+  <noscript>You need to enable JavaScript to run this app.</noscript>
+  <div class="global-row">
+    <div class="global-column">
+      <div><canvas id="outputCanvas" width="640" height="480" tabindex="-1"></canvas></div>
+      <div id="root"><div>Loading...</div></div>
+    </div>
+    <div class="global-column"></div>
+  </div>
+  <script defer src="main.fb6e8aea.js"></script>
+  <script>
+    (function() {
+      const overlay = document.getElementById('autoload-overlay');
+      const status = document.getElementById('autoload-status');
+      const bar = document.getElementById('autoload-bar');
+
+      async function autoload() {
+        try {
+          const response = await fetch('gtasan.ISO');
+          if (!response.ok) {
+            throw new Error('Failed to fetch gtasan.ISO (' + response.status + ')');
+          }
+
+          const total = parseInt(response.headers.get('content-length') || '0', 10);
+          const chunks = [];
+          let loaded = 0;
+          const reader = response.body.getReader();
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+            loaded += value.length;
+            if (total > 0) {
+              const pct = Math.round((loaded / total) * 100);
+              bar.style.width = pct + '%';
+              status.textContent = 'Loading gtasan.ISO... ' + pct + '%';
+            }
+          }
+
+          const blob = new Blob(chunks, { type: 'application/octet-stream' });
+          const file = new File([blob], 'gtasan.ISO', { type: 'application/octet-stream' });
+
+          status.textContent = 'Waiting for emulator...';
+          bar.style.width = '100%';
+
+          const input = await waitForInput();
+          const transfer = new DataTransfer();
+          transfer.items.add(file);
+          input.files = transfer.files;
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+
+          overlay.style.opacity = '0';
+          overlay.style.transition = 'opacity 0.4s';
+          setTimeout(() => overlay.remove(), 500);
+        } catch (error) {
+          status.textContent = error.message;
+          console.error(error);
+        }
+      }
+
+      function waitForInput() {
+        return new Promise((resolve) => {
+          const check = setInterval(() => {
+            const input = document.querySelector('input[type="file"]');
+            if (input) {
+              clearInterval(check);
+              resolve(input);
+            }
+          }, 100);
+        });
+      }
+
+      autoload();
+    })();
+  </script>
+</body>
+</html>
