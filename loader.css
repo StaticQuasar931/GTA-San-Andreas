@@ -82,6 +82,26 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
   backdrop-filter: blur(10px);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
 }
+.loader-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.loader-shuffle {
+  border: 1px solid rgba(255, 205, 128, 0.34);
+  background: rgba(255, 197, 102, 0.12);
+  color: #ffe6ae;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.loader-shuffle:hover {
+  background: rgba(255, 197, 102, 0.2);
+}
 .loader-kicker {
   font-size: 0.72rem;
   letter-spacing: 0.28em;
@@ -124,6 +144,11 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
   font-size: 0.82rem;
   color: rgba(255, 244, 204, 0.78);
 }
+.loader-stage {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: rgba(255, 201, 116, 0.82);
+}
 .loader-tip {
   margin-top: 18px;
   min-height: 2.8em;
@@ -131,12 +156,34 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
   line-height: 1.45;
   color: rgba(255, 240, 201, 0.86);
 }
-.loader-interact {
-  margin-top: 14px;
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
+.loader-game {
+  margin-top: 16px;
+  border: 1px solid rgba(255, 206, 131, 0.24);
+  background: rgba(12, 12, 12, 0.46);
+  padding: 12px;
+}
+.loader-game-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 0.84rem;
   text-transform: uppercase;
-  color: rgba(255, 202, 118, 0.78);
+  letter-spacing: 0.05em;
+  color: #ffd79b;
+}
+.loader-game-canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  border: 1px solid rgba(255, 225, 165, 0.15);
+  background: #1b1b1b;
+}
+.loader-game-help {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: rgba(255, 236, 193, 0.72);
 }
 .loader-card.is-pulse {
   animation: loaderPulse 0.5s ease;
