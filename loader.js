@@ -16,11 +16,10 @@
     "Assets/unnamed.webp"
   ];
   const TIPS = [
-    "Download, rebuild, then boot. This loader tracks all three separately.",
-    "If progress pauses for a moment, the heartbeat still tells you it is alive.",
-    "The mini-game is optional now. Collapse it or pause it whenever you want.",
-    "Split files are loaded one by one, then rebuilt into a single ISO in memory.",
-    "This emulator build needs cross-origin isolation headers. GitHub Pages does not provide them."
+    "Loading happens in three steps: download, rebuild, then emulator handoff.",
+    "If progress slows down during rebuild, the browser is still stitching 226 parts together.",
+    "The game panel is optional now. Pause it or collapse it whenever you want.",
+    "GitHub Pages can host the files, but this emulator build still needs isolation headers to actually run."
   ];
 
   const loaderRoot = document.getElementById("loader-root");
@@ -32,41 +31,28 @@
     '<div class="loader-vignette"></div>',
     '<div class="loader-noise"></div>',
     '<div class="loader-shade"></div>',
-    '<div class="loader-shell">',
-    '  <section class="loader-main">',
+    '<div class="loader-wrap">',
+    '  <section class="loader-panel">',
     '    <div class="loader-kicker">Play!.js Local Build</div>',
     '    <h1 class="loader-title">San Andreas</h1>',
     '    <p class="loader-status" id="loader-status">Preparing loader...</p>',
-    '    <div class="loader-time-row">',
-    '      <div class="loader-time-box"><span class="loader-time-label">Elapsed</span><strong id="loader-elapsed">00:00</strong></div>',
-    '      <div class="loader-time-box"><span class="loader-time-label">Estimate</span><strong id="loader-eta">Calculating</strong></div>',
-    '      <div class="loader-time-box"><span class="loader-time-label">Last Update</span><strong id="loader-heartbeat">just now</strong></div>',
-    "    </div>",
-    '    <div class="loader-overall">',
-    '      <div class="loader-overall-head"><span>Overall Progress</span><span id="loader-percent">0%</span></div>',
-    '      <div class="loader-track"><div class="loader-bar" id="loader-bar"></div></div>',
-    '      <div class="loader-size" id="loader-size">0 B / 4.2 GB</div>',
-    "    </div>",
-    '    <div class="loader-stages">',
-    '      <div class="loader-stage-card is-active" id="stage-download"><div class="loader-stage-head"><span>1. Download Split Files</span><span id="stage-download-text">Starting</span></div><div class="loader-stage-track"><div class="loader-stage-bar" id="stage-download-bar"></div></div></div>',
-    '      <div class="loader-stage-card" id="stage-assemble"><div class="loader-stage-head"><span>2. Rebuild ISO</span><span id="stage-assemble-text">Waiting</span></div><div class="loader-stage-track"><div class="loader-stage-bar" id="stage-assemble-bar"></div></div></div>',
-    '      <div class="loader-stage-card" id="stage-emulator"><div class="loader-stage-head"><span>3. Start Emulator</span><span id="stage-emulator-text">Waiting</span></div><div class="loader-stage-track"><div class="loader-stage-bar" id="stage-emulator-bar"></div></div></div>',
-    "    </div>",
+    '    <div class="loader-progress-head"><span id="loader-stage">Preparing</span><span id="loader-percent">0%</span></div>',
+    '    <div class="loader-track"><div class="loader-bar" id="loader-bar"></div></div>',
+    '    <div class="loader-meta"><span id="loader-size">0 B / 4.2 GB</span><span id="loader-elapsed">00:00</span><span id="loader-eta">ETA: --:--</span><span id="loader-heartbeat">Updated just now</span></div>',
     '    <div class="loader-live" id="loader-live">Loader idle</div>',
-    '    <div class="loader-tip" id="loader-tip"></div>',
-    '    <div class="loader-note" id="loader-note">Expected rebuild time depends heavily on browser memory pressure and device speed.</div>',
+    '    <div class="loader-note" id="loader-note"></div>',
     "  </section>",
-    '  <aside class="loader-side" id="loader-side">',
-    '    <div class="loader-side-head"><span>Highway Hustle</span><div class="loader-side-actions"><button type="button" id="game-pause">Pause</button><button type="button" id="game-collapse">Collapse</button></div></div>',
-    '    <canvas class="loader-game-canvas" id="game-canvas" width="340" height="190" aria-label="Loading mini-game"></canvas>',
-    '    <div class="loader-game-meta"><span id="game-score">Score: 0</span><span id="game-best">Best: 0</span></div>',
-    '    <div class="loader-game-help">Left/Right or A/D. Slower traffic, wider gaps, optional play.</div>',
+    '  <aside class="game-panel" id="game-panel">',
+    '    <div class="game-head"><span>Highway Hustle</span><div class="game-actions"><button type="button" id="game-pause">Pause</button><button type="button" id="game-collapse">Collapse</button></div></div>',
+    '    <canvas class="game-canvas" id="game-canvas" width="300" height="160" aria-label="Loading mini-game"></canvas>',
+    '    <div class="game-meta"><span id="game-score">Score: 0</span><span id="game-best">Best: 0</span></div>',
     "  </aside>",
     "</div>"
   ].join("");
 
   const backgrounds = Array.from(loaderRoot.querySelectorAll(".loader-bg"));
   const statusNode = document.getElementById("loader-status");
+  const stageNode = document.getElementById("loader-stage");
   const percentNode = document.getElementById("loader-percent");
   const barNode = document.getElementById("loader-bar");
   const sizeNode = document.getElementById("loader-size");
@@ -75,20 +61,10 @@
   const heartbeatNode = document.getElementById("loader-heartbeat");
   const liveNode = document.getElementById("loader-live");
   const noteNode = document.getElementById("loader-note");
-  const tipNode = document.getElementById("loader-tip");
-  const stageDownload = document.getElementById("stage-download");
-  const stageAssemble = document.getElementById("stage-assemble");
-  const stageEmulator = document.getElementById("stage-emulator");
-  const stageDownloadBar = document.getElementById("stage-download-bar");
-  const stageAssembleBar = document.getElementById("stage-assemble-bar");
-  const stageEmulatorBar = document.getElementById("stage-emulator-bar");
-  const stageDownloadText = document.getElementById("stage-download-text");
-  const stageAssembleText = document.getElementById("stage-assemble-text");
-  const stageEmulatorText = document.getElementById("stage-emulator-text");
-  const gameCanvas = document.getElementById("game-canvas");
+  const gamePanel = document.getElementById("game-panel");
   const gamePauseButton = document.getElementById("game-pause");
   const gameCollapseButton = document.getElementById("game-collapse");
-  const gameSide = document.getElementById("loader-side");
+  const gameCanvas = document.getElementById("game-canvas");
   const gameScoreNode = document.getElementById("game-score");
   const gameBestNode = document.getElementById("game-best");
   const gameContext = gameCanvas.getContext("2d");
@@ -96,7 +72,6 @@
   let currentLayer = 0;
   let currentImage = "";
   let recentImages = [];
-  let tipIndex = Math.floor(Math.random() * TIPS.length);
   let overallProgress = 0;
   let startTime = Date.now();
   let lastProgressAt = Date.now();
@@ -108,7 +83,7 @@
   const progressState = {
     downloadBytes: 0,
     assembleParts: 0,
-    inputReady: false
+    currentStage: "Preparing"
   };
 
   const game = {
@@ -121,8 +96,8 @@
     best: 0,
     obstacles: [],
     pickups: [],
-    nextObstacle: 1.9,
-    nextPickup: 2.6,
+    nextObstacle: 2.1,
+    nextPickup: 2.8,
     lastTime: 0
   };
 
@@ -168,32 +143,30 @@
     const next = backgrounds[currentLayer % backgrounds.length];
     const prev = backgrounds[(currentLayer + 1) % backgrounds.length];
     next.style.backgroundImage = 'url("' + nextImage().replace(/"/g, "%22") + '")';
-    next.style.setProperty("--pan-x", force ? "0px" : ((Math.random() * 18) - 9).toFixed(1) + "px");
-    next.style.setProperty("--pan-y", force ? "0px" : ((Math.random() * 14) - 7).toFixed(1) + "px");
+    next.style.setProperty("--pan-x", force ? "0px" : ((Math.random() * 12) - 6).toFixed(1) + "px");
+    next.style.setProperty("--pan-y", force ? "0px" : ((Math.random() * 8) - 4).toFixed(1) + "px");
     next.classList.add("is-visible");
     prev.classList.remove("is-visible");
     currentLayer += 1;
-  }
-
-  function cycleTip() {
-    tipIndex = (tipIndex + 1) % TIPS.length;
-    tipNode.textContent = TIPS[tipIndex];
   }
 
   function markProgress() {
     lastProgressAt = Date.now();
   }
 
-  function setStageState(stageCard, status) {
-    stageCard.classList.remove("is-active", "is-done", "is-error");
-    stageCard.classList.add(status);
-  }
-
   function updateHeartbeat() {
     const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
     const sinceUpdate = Math.floor((Date.now() - lastProgressAt) / 1000);
     elapsedNode.textContent = formatTime(elapsedSeconds);
-    heartbeatNode.textContent = sinceUpdate < 2 ? "just now" : sinceUpdate + "s ago";
+    heartbeatNode.textContent = sinceUpdate < 2 ? "Updated just now" : "Updated " + sinceUpdate + "s ago";
+    heartbeatNode.classList.remove("is-fresh", "is-warm", "is-stale");
+    if (sinceUpdate <= 5) {
+      heartbeatNode.classList.add("is-fresh");
+    } else if (sinceUpdate < 60) {
+      heartbeatNode.classList.add("is-warm");
+    } else {
+      heartbeatNode.classList.add("is-stale");
+    }
     if (sinceUpdate > 20) {
       liveNode.textContent = "Still working. No fresh progress for " + sinceUpdate + " seconds.";
     }
@@ -204,84 +177,31 @@
     if (progressState.downloadBytes > 0 && progressState.downloadBytes < TOTAL_BYTES) {
       const speed = progressState.downloadBytes / elapsedSeconds;
       const remaining = Math.max(0, TOTAL_BYTES - progressState.downloadBytes);
-      const estimate = remaining / Math.max(speed, 1);
-      etaNode.textContent = "~" + formatTime(estimate);
+      etaNode.textContent = "ETA: " + formatTime(remaining / Math.max(speed, 1));
       noteNode.textContent = "Current split-file speed: " + humanSize(speed) + "/s";
       return;
     }
     if (progressState.downloadBytes >= TOTAL_BYTES && progressState.assembleParts < PART_COUNT) {
-      const fraction = progressState.assembleParts / Math.max(PART_COUNT, 1);
+      const fraction = progressState.assembleParts / PART_COUNT;
       const estimatedTotal = 25 + PART_COUNT * 0.08;
-      const estimate = Math.max(0, estimatedTotal * (1 - fraction));
-      etaNode.textContent = "~" + formatTime(estimate);
-      noteNode.textContent = "ISO rebuild can look stuck even when it is still working because the browser is stitching 226 parts in memory.";
+      etaNode.textContent = "ETA: " + formatTime(Math.max(0, estimatedTotal * (1 - fraction)));
+      noteNode.textContent = "Rebuild is CPU and memory heavy, so it can look slower than download.";
       return;
     }
-    if (progressState.assembleParts >= PART_COUNT && !progressState.inputReady) {
-      etaNode.textContent = "Waiting";
-      noteNode.textContent = "The loader is waiting for the emulator to expose its file input.";
-      return;
-    }
-    etaNode.textContent = "Almost done";
+    etaNode.textContent = "ETA: --:--";
   }
 
-  function setOverallProgress(fraction, statusText, liveText) {
+  function setProgress(fraction, stageText, statusText, liveText, sizeText) {
     overallProgress = Math.max(overallProgress, Math.min(fraction, 1));
-    barNode.style.width = (overallProgress * 100).toFixed(1) + "%";
-    percentNode.textContent = Math.round(overallProgress * 100) + "%";
+    progressState.currentStage = stageText;
+    stageNode.textContent = stageText;
     statusNode.textContent = statusText;
     liveNode.textContent = liveText;
+    sizeNode.textContent = sizeText;
+    barNode.style.width = (overallProgress * 100).toFixed(1) + "%";
+    percentNode.textContent = Math.round(overallProgress * 100) + "%";
     markProgress();
     updateEstimate();
-  }
-
-  function setDownloadProgress(bytesLoaded, currentPart) {
-    progressState.downloadBytes = bytesLoaded;
-    setStageState(stageDownload, "is-active");
-    stageDownloadBar.style.width = ((bytesLoaded / TOTAL_BYTES) * 100).toFixed(2) + "%";
-    stageDownloadText.textContent = currentPart + " / " + PART_COUNT;
-    sizeNode.textContent = humanSize(bytesLoaded) + " / " + humanSize(TOTAL_BYTES);
-    setOverallProgress(
-      (bytesLoaded / TOTAL_BYTES) * 0.78,
-      "Downloading split file " + currentPart + " of " + PART_COUNT + "...",
-      "Fetching local split files and tracking byte progress."
-    );
-  }
-
-  function setAssemblyProgress(partsDone) {
-    progressState.assembleParts = partsDone;
-    setStageState(stageDownload, "is-done");
-    setStageState(stageAssemble, "is-active");
-    stageDownloadBar.style.width = "100%";
-    stageDownloadText.textContent = "Completed";
-    stageAssembleBar.style.width = ((partsDone / PART_COUNT) * 100).toFixed(2) + "%";
-    stageAssembleText.textContent = partsDone + " / " + PART_COUNT;
-    sizeNode.textContent = partsDone + " / " + PART_COUNT + " parts combined";
-    setOverallProgress(
-      0.78 + (partsDone / PART_COUNT) * 0.17,
-      "Rebuilding the ISO from 226 split files...",
-      "Still working. Browser memory assembly is the slowest-looking part."
-    );
-  }
-
-  function setEmulatorProgress(statusText, fraction, detailText) {
-    setStageState(stageDownload, "is-done");
-    setStageState(stageAssemble, "is-done");
-    setStageState(stageEmulator, "is-active");
-    stageAssembleBar.style.width = "100%";
-    stageAssembleText.textContent = "Completed";
-    stageEmulatorBar.style.width = (fraction * 100).toFixed(0) + "%";
-    stageEmulatorText.textContent = detailText;
-    sizeNode.textContent = detailText;
-    setOverallProgress(0.95 + fraction * 0.05, statusText, "Loader is waiting on the emulator, not frozen.");
-  }
-
-  function setErrorState(message, note) {
-    setStageState(stageEmulator, "is-error");
-    statusNode.textContent = message;
-    liveNode.textContent = note || "The loader stopped.";
-    noteNode.textContent = note || "";
-    etaNode.textContent = "Blocked";
   }
 
   function partName(index) {
@@ -293,7 +213,7 @@
       const script = document.createElement("script");
       script.src = "main.fb6e8aea.js";
       script.defer = true;
-      script.onload = () => resolve();
+      script.onload = resolve;
       script.onerror = () => reject(new Error("Failed to load emulator bundle."));
       document.body.appendChild(script);
     });
@@ -325,12 +245,19 @@
       const assembled = [];
       let index = 0;
       function step() {
-        const chunkSize = 2;
+        const chunkSize = 3;
         const nextIndex = Math.min(index + chunkSize, partBlobs.length);
         for (; index < nextIndex; index += 1) {
           assembled.push(partBlobs[index]);
         }
-        setAssemblyProgress(assembled.length);
+        progressState.assembleParts = assembled.length;
+        setProgress(
+          0.84 + (assembled.length / PART_COUNT) * 0.12,
+          "Rebuilding ISO",
+          "Combining split files into one disc image...",
+          "Still working. This stage is usually the one that feels slowest.",
+          assembled.length + " / " + PART_COUNT + " parts combined"
+        );
         if (index < partBlobs.length) {
           requestAnimationFrame(step);
           return;
@@ -344,77 +271,78 @@
   function waitForInput() {
     return new Promise((resolve, reject) => {
       const started = Date.now();
-      const check = setInterval(() => {
+      const timer = setInterval(() => {
         const input = document.querySelector('input[type="file"]');
         if (input) {
-          clearInterval(check);
-          progressState.inputReady = true;
+          clearInterval(timer);
           resolve(input);
           return;
         }
         const seconds = Math.floor((Date.now() - started) / 1000);
-        setEmulatorProgress("Waiting for emulator boot...", 0.5, seconds + "s waiting for file input");
+        setProgress(
+          0.98,
+          "Starting Emulator",
+          "Waiting for emulator boot...",
+          "Still working. Waiting for Play!.js to expose its file input.",
+          seconds + "s waiting for emulator"
+        );
         if (seconds > 12 && !window.crossOriginIsolated) {
-          clearInterval(check);
-          reject(new Error("This host cannot start the emulator because it is missing cross-origin isolation headers."));
+          clearInterval(timer);
+          reject(new Error("The emulator cannot boot on this host because cross-origin isolation headers are missing."));
         }
       }, 250);
     });
   }
 
-  function environmentBlocker() {
-    if (window.crossOriginIsolated) return null;
-    return [
-      "This host cannot run this Play! build.",
-      "Reason: the emulator uses shared WebAssembly memory and requires Cross-Origin-Opener-Policy and Cross-Origin-Embedder-Policy headers.",
-      "GitHub Pages does not provide those headers, so it will fail even if the loader finishes rebuilding the ISO.",
-      "Use the included local server or host somewhere that lets you set COOP and COEP headers."
-    ].join(" ");
-  }
-
   async function autoload() {
     try {
-      const blocker = environmentBlocker();
-      if (blocker) {
-        setErrorState("Host blocked", blocker);
-        return;
+      const bundlePromise = injectBundle();
+      if (!window.crossOriginIsolated) {
+        noteNode.textContent = "Warning: this host may fail later because the emulator needs COOP and COEP headers.";
       }
 
-      const bundlePromise = injectBundle();
       const partBlobs = [];
       let totalLoaded = 0;
-      setDownloadProgress(0, 0);
+      setProgress(0.01, "Preparing", "Opening split files...", "Loader started.", "0 B / " + humanSize(TOTAL_BYTES));
 
       for (let index = 1; index <= PART_COUNT; index += 1) {
-        let currentPartLoaded = 0;
+        let partLoaded = 0;
         const blob = await fetchPart(index, (loaded) => {
-          totalLoaded += loaded - currentPartLoaded;
-          currentPartLoaded = loaded;
-          setDownloadProgress(totalLoaded, index);
+          totalLoaded += loaded - partLoaded;
+          partLoaded = loaded;
+          progressState.downloadBytes = totalLoaded;
+          setProgress(
+            (totalLoaded / TOTAL_BYTES) * 0.84,
+            "Downloading Split Files",
+            "Loading split file " + index + " of " + PART_COUNT + "...",
+            "Fetching local split files and tracking byte progress.",
+            humanSize(totalLoaded) + " / " + humanSize(TOTAL_BYTES)
+          );
         });
         partBlobs.push(blob);
       }
 
       const file = await animateAssembly(partBlobs);
       await bundlePromise;
-      setEmulatorProgress("Emulator bundle loaded. Waiting for file input...", 0.72, "Bundle ready");
       const input = await waitForInput();
       const transfer = new DataTransfer();
       transfer.items.add(file);
       input.files = transfer.files;
       input.dispatchEvent(new Event("change", { bubbles: true }));
-      setStageState(stageEmulator, "is-done");
-      stageEmulatorBar.style.width = "100%";
-      stageEmulatorText.textContent = "Disc image injected";
-      setOverallProgress(1, "Launching San Andreas...", "All stages complete. Starting game.");
-      etaNode.textContent = "Done";
+      setProgress(1, "Launching", "Launching San Andreas...", "Disc image injected. Starting game.", "ISO ready");
+      etaNode.textContent = "ETA: done";
       setTimeout(() => {
         loaderRoot.style.transition = "opacity 0.5s ease";
         loaderRoot.style.opacity = "0";
         setTimeout(() => loaderRoot.remove(), 550);
-      }, 600);
+      }, 500);
     } catch (error) {
-      setErrorState(error.message, "If this is on GitHub Pages, the emulator itself is blocked by missing headers.");
+      statusNode.textContent = error.message;
+      liveNode.textContent = "The loader stopped.";
+      noteNode.textContent = !window.crossOriginIsolated
+        ? "If this is GitHub Pages, that is expected. This emulator build needs COOP and COEP headers."
+        : "Check the split files and host setup.";
+      etaNode.textContent = "ETA: blocked";
       console.error(error);
     }
   }
@@ -424,8 +352,8 @@
     game.targetLane = 1;
     game.obstacles.length = 0;
     game.pickups.length = 0;
-    game.nextObstacle = 1.9;
-    game.nextPickup = 2.6;
+    game.nextObstacle = 2.1;
+    game.nextPickup = 2.8;
   }
 
   function laneCenter(lane) {
@@ -435,27 +363,27 @@
   function spawnObstacle() {
     game.obstacles.push({
       lane: Math.floor(Math.random() * game.laneCount),
-      y: -36,
-      speed: 85 + Math.random() * 35,
-      width: 48,
-      height: 30
+      y: -32,
+      speed: 70 + Math.random() * 24,
+      width: 42,
+      height: 26
     });
   }
 
   function spawnPickup() {
     game.pickups.push({
       lane: Math.floor(Math.random() * game.laneCount),
-      y: -20,
-      speed: 70 + Math.random() * 20,
-      size: 16
+      y: -18,
+      speed: 60 + Math.random() * 16,
+      size: 14
     });
   }
 
   function updateGame(delta) {
     if (gamePaused || gameCollapsed) return;
-    game.roadOffset = (game.roadOffset + delta * 120) % 44;
-    game.playerX += (laneCenter(game.targetLane) - game.playerX) * Math.min(delta * 8, 1);
-    game.score += delta * 6;
+    game.roadOffset = (game.roadOffset + delta * 95) % 40;
+    game.playerX += (laneCenter(game.targetLane) - game.playerX) * Math.min(delta * 6, 1);
+    game.score += delta * 4;
     gameScoreNode.textContent = "Score: " + Math.floor(game.score);
     gameBestNode.textContent = "Best: " + game.best;
 
@@ -463,23 +391,19 @@
     game.nextPickup -= delta;
     if (game.nextObstacle <= 0) {
       spawnObstacle();
-      game.nextObstacle = 1.1 + Math.random() * 0.8;
+      game.nextObstacle = 1.35 + Math.random() * 0.9;
     }
     if (game.nextPickup <= 0) {
       spawnPickup();
-      game.nextPickup = 2.1 + Math.random() * 1.4;
+      game.nextPickup = 2.5 + Math.random() * 1.2;
     }
 
-    game.obstacles.forEach((item) => {
-      item.y += item.speed * delta;
-    });
-    game.pickups.forEach((item) => {
-      item.y += item.speed * delta;
-    });
+    game.obstacles.forEach((item) => { item.y += item.speed * delta; });
+    game.pickups.forEach((item) => { item.y += item.speed * delta; });
 
-    const playerBox = { x: game.playerX - 20, y: 138, width: 40, height: 34 };
+    const playerBox = { x: game.playerX - 18, y: 118, width: 36, height: 28 };
     game.obstacles = game.obstacles.filter((item) => {
-      if (item.y > gameCanvas.height + 40) return false;
+      if (item.y > gameCanvas.height + 30) return false;
       const box = { x: laneCenter(item.lane) - item.width / 2, y: item.y, width: item.width, height: item.height };
       const hit = playerBox.x < box.x + box.width &&
         playerBox.x + playerBox.width > box.x &&
@@ -487,7 +411,6 @@
         playerBox.y + playerBox.height > box.y;
       if (hit) {
         game.best = Math.max(game.best, Math.floor(game.score));
-        gameBestNode.textContent = "Best: " + game.best;
         resetRun();
         return false;
       }
@@ -495,14 +418,14 @@
     });
 
     game.pickups = game.pickups.filter((item) => {
-      if (item.y > gameCanvas.height + 30) return false;
+      if (item.y > gameCanvas.height + 20) return false;
       const box = { x: laneCenter(item.lane) - item.size / 2, y: item.y, width: item.size, height: item.size };
       const hit = playerBox.x < box.x + box.width &&
         playerBox.x + playerBox.width > box.x &&
         playerBox.y < box.y + box.height &&
         playerBox.y + playerBox.height > box.y;
       if (hit) {
-        game.score += 10;
+        game.score += 8;
         return false;
       }
       return true;
@@ -524,49 +447,40 @@
   function drawGame() {
     gameContext.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
     const sky = gameContext.createLinearGradient(0, 0, 0, gameCanvas.height);
-    sky.addColorStop(0, "#f7be7e");
-    sky.addColorStop(0.5, "#cb6b3f");
-    sky.addColorStop(1, "#181818");
+    sky.addColorStop(0, "#f1b980");
+    sky.addColorStop(0.52, "#c36443");
+    sky.addColorStop(1, "#171717");
     gameContext.fillStyle = sky;
     gameContext.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
-
-    gameContext.fillStyle = "rgba(22, 22, 22, 0.9)";
-    gameContext.fillRect(54, 0, gameCanvas.width - 108, gameCanvas.height);
-
+    gameContext.fillStyle = "rgba(24, 24, 24, 0.92)";
+    gameContext.fillRect(48, 0, gameCanvas.width - 96, gameCanvas.height);
     gameContext.strokeStyle = "rgba(255, 230, 170, 0.72)";
     gameContext.lineWidth = 3;
     for (let lane = 1; lane < game.laneCount; lane += 1) {
       const x = lane * game.laneWidth;
-      for (let y = -44 + game.roadOffset; y < gameCanvas.height + 44; y += 44) {
+      for (let y = -40 + game.roadOffset; y < gameCanvas.height + 40; y += 40) {
         gameContext.beginPath();
         gameContext.moveTo(x, y);
-        gameContext.lineTo(x, y + 22);
+        gameContext.lineTo(x, y + 18);
         gameContext.stroke();
       }
     }
-
     game.obstacles.forEach((item) => {
       const x = laneCenter(item.lane) - item.width / 2;
-      drawRoundedRect(x, item.y, item.width, item.height, 7, "#4370ff");
-      drawRoundedRect(x + 5, item.y + 5, item.width - 10, item.height - 10, 5, "#d9e4ff");
+      drawRoundedRect(x, item.y, item.width, item.height, 7, "#4c75ff");
+      drawRoundedRect(x + 5, item.y + 5, item.width - 10, item.height - 10, 5, "#dfe8ff");
     });
-
     game.pickups.forEach((item) => {
       const x = laneCenter(item.lane);
-      gameContext.fillStyle = "#71f06b";
+      gameContext.fillStyle = "#70ef69";
       gameContext.beginPath();
       gameContext.arc(x, item.y + item.size / 2, item.size / 2, 0, Math.PI * 2);
       gameContext.fill();
-      gameContext.fillStyle = "#163a11";
-      gameContext.font = "bold 11px Trebuchet MS";
-      gameContext.textAlign = "center";
-      gameContext.fillText("$", x, item.y + 12);
     });
-
-    const playerX = game.playerX - 20;
-    drawRoundedRect(playerX, 138, 40, 34, 8, "#16c783");
-    drawRoundedRect(playerX + 8, 143, 24, 10, 4, "#0d372b");
-    drawRoundedRect(playerX + 7, 156, 26, 9, 4, "#ffdd8e");
+    const playerX = game.playerX - 18;
+    drawRoundedRect(playerX, 118, 36, 28, 8, "#18c786");
+    drawRoundedRect(playerX + 7, 123, 22, 8, 4, "#10382d");
+    drawRoundedRect(playerX + 7, 134, 22, 6, 4, "#ffdc94");
   }
 
   function tickGame(timestamp) {
@@ -594,7 +508,7 @@
 
   gameCollapseButton.addEventListener("click", () => {
     gameCollapsed = !gameCollapsed;
-    gameSide.classList.toggle("is-collapsed", gameCollapsed);
+    gamePanel.classList.toggle("is-collapsed", gameCollapsed);
     gameCollapseButton.textContent = gameCollapsed ? "Expand" : "Collapse";
   });
 
@@ -602,7 +516,7 @@
     const x = event.clientX / window.innerWidth - 0.5;
     const y = event.clientY / window.innerHeight - 0.5;
     backgrounds.forEach((bg, index) => {
-      const factor = index === currentLayer % 2 ? 12 : 8;
+      const factor = index === currentLayer % 2 ? 9 : 6;
       bg.style.setProperty("--pan-x", (x * factor).toFixed(1) + "px");
       bg.style.setProperty("--pan-y", (y * factor).toFixed(1) + "px");
     });
@@ -610,11 +524,12 @@
 
   window.addEventListener("keydown", handleKey);
   resetRun();
-  setDownloadProgress(0, 0);
   swapBackground(true);
-  cycleTip();
-  setInterval(() => swapBackground(false), 8500);
-  setInterval(cycleTip, 8000);
+  setInterval(() => swapBackground(false), 9000);
+  setInterval(() => {
+    noteNode.textContent = TIPS[(Math.floor(Date.now() / 8000)) % TIPS.length];
+  }, 8000);
+  noteNode.textContent = TIPS[0];
   heartbeatTimer = setInterval(updateHeartbeat, 1000);
   rafId = requestAnimationFrame(tickGame);
   autoload().finally(() => {
