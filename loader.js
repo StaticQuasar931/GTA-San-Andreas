@@ -83,7 +83,10 @@
     '      <div class="game-meta"><span id="game-score">Score: 0</span><span id="game-best">Best: 0</span></div>',
     '    </div>',
     '    <div class="game-stage" id="stage-suika">',
-    '      <div class="suika-wrap"><iframe class="suika-frame" src="' + SUIKA_URL + '" loading="lazy" referrerpolicy="no-referrer" allowfullscreen title="Suika Watermelon Game"></iframe></div>',
+    '      <div class="suika-wrap">',
+    '        <iframe class="suika-frame" src="' + SUIKA_URL + '" loading="lazy" referrerpolicy="no-referrer" allowfullscreen title="Suika Watermelon Game"></iframe>',
+    '        <div class="suika-fallback"><div class="suika-fallback-title">Suika Watermelon Game</div><div class="suika-fallback-text">Some sites block embedding inside iframes. If that happens here, open Suika in a new tab.</div><a class="support-link suika-link" href="' + SUIKA_URL + '" target="_blank" rel="noreferrer">Open Suika</a></div>',
+    '      </div>',
     '    </div>',
     '  </aside>',
     '</div>',
@@ -281,7 +284,7 @@
     etaNode.textContent = "ETA: --:--";
   }
 
-  function setProgress(stageFraction, stageText, statusText, liveText, sizeText) {
+  function setProgress(stageFraction, stageText, statusText, liveText, sizeText, shouldMark) {
     const safeFraction = Math.max(0, Math.min(stageFraction, 1));
     progressState.stage = stageText;
     stageNode.textContent = stageText;
@@ -290,7 +293,7 @@
     sizeNode.textContent = sizeText;
     barNode.style.width = (safeFraction * 100).toFixed(1) + "%";
     percentNode.textContent = Math.round(safeFraction * 100) + "%";
-    markProgress();
+    if (shouldMark !== false) markProgress();
     updateEstimate();
   }
 
@@ -423,11 +426,49 @@
   function waitForInput() {
     return new Promise((resolve, reject) => {
       const started = Date.now();
+      let settled = false;
+      const cleanup = () => {
+        clearInterval(timer);
+        window.removeEventListener("error", onError);
+        window.removeEventListener("unhandledrejection", onRejection);
+      };
+      const fail = (message) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(new Error(message));
+      };
+      const finish = (input) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(input);
+      };
+      const looksLikePlayError = (message) => {
+        if (!message) return false;
+        return message.includes("ArrayBuffer") ||
+          message.includes("worker sent an error") ||
+          message.includes("wasm streaming compile failed") ||
+          message.includes("Failed to load ''");
+      };
+      const onError = (event) => {
+        const message = String(event.message || "");
+        if (looksLikePlayError(message) || String(event.filename || "").includes("Play.js")) {
+          fail("The emulator worker failed while starting. Play.js could not finish loading on this host.");
+        }
+      };
+      const onRejection = (event) => {
+        const reason = event.reason && (event.reason.message || String(event.reason));
+        if (looksLikePlayError(String(reason || ""))) {
+          fail("The emulator hit a startup error while loading Play.js or Play.wasm.");
+        }
+      };
+      window.addEventListener("error", onError);
+      window.addEventListener("unhandledrejection", onRejection);
       const timer = setInterval(() => {
         const input = document.querySelector('input[type="file"]');
         if (input) {
-          clearInterval(timer);
-          resolve(input);
+          finish(input);
           return;
         }
         const seconds = Math.floor((Date.now() - started) / 1000);
@@ -436,11 +477,15 @@
           "Starting Emulator",
           "Waiting for emulator boot...",
           "Starting Play!.js and waiting for its disc picker to appear.",
-          seconds + "s waiting for emulator"
+          seconds + "s waiting for emulator",
+          false
         );
         if (seconds > 18 && !window.crossOriginIsolated) {
-          clearInterval(timer);
-          reject(new Error("The emulator cannot boot on this host because cross-origin isolation headers are missing."));
+          fail("The emulator cannot boot on this host because cross-origin isolation headers are missing.");
+          return;
+        }
+        if (seconds > 90) {
+          fail("The emulator startup timed out before its file input appeared.");
         }
       }, 500);
     });
@@ -546,7 +591,7 @@
       liveNode.textContent = "The loader stopped.";
       noteNode.textContent = !window.crossOriginIsolated
         ? "This host still is not cross-origin isolated. The emulator itself is the blocker now."
-        : "Check the split files, browser console, and host setup.";
+        : "Check the split files, Play.js startup, and host setup.";
       etaNode.textContent = "ETA: blocked";
       showSupportPopup();
       console.error(error);

@@ -14,7 +14,11 @@ self.addEventListener("fetch", (event) => {
     headers.set("Cross-Origin-Opener-Policy", "same-origin");
     headers.set("Cross-Origin-Resource-Policy", "cross-origin");
 
-    return new Response(response.body, {
+    const body = request.method === "GET" || request.method === "HEAD"
+      ? await response.blob()
+      : response.body;
+
+    return new Response(body, {
       status: response.status,
       statusText: response.statusText,
       headers
