@@ -4,14 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>GTA San Andreas Browser Build</title>
-  <meta name="description" content="Play GTA San Andreas in your browser with the local Play!.js web build.">
+  <meta name="description" content="Play GTA San Andreas in your browser through a Play!.js web build with split ISO loading, caching, and a custom loading screen.">
+  <meta name="keywords" content="GTA San Andreas browser, GTA San Andreas web build, Play.js, Play!.js, PS2 emulator browser, StaticQuasar931 Games">
   <meta name="theme-color" content="#0b0b0b">
   <meta property="og:title" content="GTA San Andreas Browser Build">
-  <meta property="og:description" content="Local web launcher for GTA San Andreas running through Play!.js.">
+  <meta property="og:description" content="A browser-based GTA San Andreas Play!.js build with split-file loading, caching, and a custom loader.">
   <meta property="og:type" content="website">
+  <meta property="og:url" content="https://staticquasar931.github.io/GTA-San-Andreas/">
   <meta name="robots" content="index,follow">
   <link rel="icon" href="data:,">
-  <link rel="canonical" href="./">
+  <link rel="canonical" href="https://staticquasar931.github.io/GTA-San-Andreas/">
   <link rel="stylesheet" href="main.5a525eca.css">
   <link rel="stylesheet" href="loader.css">
 </head>
@@ -19,6 +21,18 @@
   <div id="loader-root"></div>
   <noscript>You need to enable JavaScript to run this app.</noscript>
   <div class="global-row"><div class="global-column"><div><canvas id="outputCanvas" width="640" height="480" tabindex="-1"></canvas></div><div id="root"><div>Loading...</div></div></div><div class="global-column"></div></div>
+  <script>
+    (function () {
+      if (!('serviceWorker' in navigator)) return;
+      navigator.serviceWorker.register('./coi-serviceworker.js').then(function () {
+        if (!navigator.serviceWorker.controller) return;
+        if (!window.crossOriginIsolated && !sessionStorage.getItem('coi-reloaded')) {
+          sessionStorage.setItem('coi-reloaded', '1');
+          location.reload();
+        }
+      }).catch(function () {});
+    })();
+  </script>
   <script src="loader.js"></script>
 </body>
 </html>

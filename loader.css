@@ -219,6 +219,10 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
   text-transform: uppercase;
   cursor: pointer;
 }
+.game-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 .game-canvas {
   width: 100%;
   height: auto;
@@ -234,6 +238,61 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
   margin-top: 8px;
   font-size: 0.78rem;
   color: #ffe6b6;
+}
+.support-popup {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.24);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.support-popup.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.support-card {
+  width: min(460px, calc(100vw - 28px));
+  padding: 18px;
+  border: 1px solid rgba(255, 219, 156, 0.22);
+  background: rgba(12, 12, 12, 0.82);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 22px 46px rgba(0, 0, 0, 0.3);
+}
+.support-title {
+  font-size: 1.05rem;
+  color: #fff3c9;
+}
+.support-body {
+  margin-top: 10px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: rgba(255, 240, 205, 0.84);
+}
+.support-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+.support-link,
+.support-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 214, 143, 0.24);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff0c8;
+  text-decoration: none;
+  font: inherit;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  cursor: pointer;
 }
 @media (max-width: 900px) {
   .loader-wrap {
