@@ -84,33 +84,35 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
 }
 .loader-panel {
-  width: min(540px, calc(100vw - 380px));
+  width: min(540px, calc(100vw - 370px));
   min-width: 320px;
   padding: 16px 18px;
 }
 .loader-kicker {
   font-size: 0.66rem;
-  letter-spacing: 0.24em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   color: #ffbf66;
 }
 .loader-title {
   margin-top: 6px;
-  font-size: clamp(1.7rem, 4vw, 3rem);
+  font-size: clamp(1.9rem, 4vw, 3.1rem);
   line-height: 0.95;
   text-transform: uppercase;
   color: #fff4d0;
 }
 .loader-status {
+  min-height: 2.5em;
   margin-top: 10px;
   font-size: 0.95rem;
+  line-height: 1.25;
   color: rgba(255, 245, 216, 0.92);
 }
 .loader-progress-head {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 12px;
+  margin-top: 10px;
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -132,43 +134,55 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
 .loader-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 14px;
+  gap: 8px 10px;
   margin-top: 10px;
-  font-size: 0.78rem;
-  color: rgba(255, 241, 206, 0.78);
+}
+.loader-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 219, 156, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 0.76rem;
+  color: rgba(255, 241, 206, 0.82);
 }
 #loader-heartbeat {
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+  font-weight: 700;
+  border-width: 2px;
+  transition: color 0.28s ease, background-color 0.28s ease, border-color 0.28s ease, box-shadow 0.28s ease;
 }
 #loader-heartbeat.is-fresh {
-  color: #d8ffd8;
-  background: rgba(71, 173, 92, 0.22);
-  border-color: rgba(99, 207, 121, 0.4);
+  color: #ecffea;
+  background: rgba(58, 170, 77, 0.38);
+  border-color: rgba(89, 222, 111, 0.82);
+  box-shadow: 0 0 18px rgba(89, 222, 111, 0.18);
 }
 #loader-heartbeat.is-warm {
-  color: #fff0bd;
-  background: rgba(220, 164, 42, 0.2);
-  border-color: rgba(255, 201, 76, 0.36);
+  color: #fff6d6;
+  background: rgba(221, 162, 40, 0.34);
+  border-color: rgba(255, 199, 68, 0.82);
+  box-shadow: 0 0 18px rgba(255, 199, 68, 0.14);
 }
 #loader-heartbeat.is-stale {
-  color: #ffd2cb;
-  background: rgba(190, 74, 61, 0.22);
-  border-color: rgba(235, 110, 96, 0.4);
+  color: #ffe0db;
+  background: rgba(189, 67, 57, 0.34);
+  border-color: rgba(241, 104, 93, 0.84);
+  box-shadow: 0 0 18px rgba(241, 104, 93, 0.16);
 }
 .loader-live {
+  min-height: 2.8em;
   margin-top: 10px;
   font-size: 0.82rem;
-  line-height: 1.4;
-  color: rgba(255, 245, 215, 0.88);
+  line-height: 1.35;
+  color: rgba(255, 245, 215, 0.9);
 }
 .loader-note {
-  margin-top: 9px;
+  min-height: 3.2em;
+  margin-top: 8px;
   font-size: 0.78rem;
   line-height: 1.4;
-  color: rgba(255, 236, 193, 0.68);
+  color: rgba(255, 236, 193, 0.72);
 }
 .game-panel {
   width: 300px;
