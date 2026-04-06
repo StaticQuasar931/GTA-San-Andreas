@@ -226,23 +226,6 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
   opacity: 0.5;
   cursor: default;
 }
-.game-tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin-top: 10px;
-}
-.game-tab {
-  min-height: 32px;
-  padding: 0 8px;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-}
-.game-tab.is-active {
-  background: rgba(255, 175, 82, 0.2);
-  border-color: rgba(255, 195, 101, 0.5);
-  color: #fff5d9;
-}
 .game-stage {
   display: none;
   margin-top: 10px;
@@ -259,44 +242,6 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
 .game-canvas {
   display: block;
   height: auto;
-}
-.suika-wrap {
-  position: relative;
-  height: 220px;
-  overflow: hidden;
-}
-.suika-frame {
-  width: 100%;
-  height: 100%;
-  border: 0;
-  display: block;
-  background: #111;
-}
-.suika-fallback {
-  position: absolute;
-  inset: auto 10px 10px 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 10px;
-  background: rgba(0, 0, 0, 0.62);
-  border: 1px solid rgba(255, 219, 156, 0.16);
-  text-align: center;
-}
-.suika-fallback-title {
-  font-size: 0.82rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #ffe5b0;
-}
-.suika-fallback-text {
-  font-size: 0.75rem;
-  line-height: 1.4;
-  color: rgba(255, 241, 210, 0.82);
-}
-.suika-link {
-  min-width: 136px;
 }
 .game-meta {
   display: flex;

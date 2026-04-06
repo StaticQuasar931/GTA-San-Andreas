@@ -6,30 +6,23 @@ self.addEventListener("fetch", (event) => {
   if (request.cache === "only-if-cached" && request.mode !== "same-origin") return;
 
   event.respondWith((async () => {
-    const response = await fetch(request);
-    if (!response || response.status === 0) return response;
+    try {
+      const response = await fetch(request);
+      if (!response || response.status === 0) return response;
 
-    const headers = new Headers(response.headers);
-    headers.set("Cross-Origin-Embedder-Policy", "require-corp");
-    headers.set("Cross-Origin-Opener-Policy", "same-origin");
-    headers.set("Cross-Origin-Resource-Policy", "cross-origin");
+      const headers = new Headers(response.headers);
+      headers.set("Cross-Origin-Embedder-Policy", "require-corp");
+      headers.set("Cross-Origin-Opener-Policy", "same-origin");
+      headers.set("Cross-Origin-Resource-Policy", "cross-origin");
 
-    const body = request.method === "GET" || request.method === "HEAD"
-      ? await response.blob()
-      : response.body;
-
-    return new Response(body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers
-    });
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers
+      });
+    } catch (error) {
+      console.error("coi-serviceworker fetch failed", request.url, error);
+      throw error;
+    }
   })());
-});
-
-self.addEventListener("message", (event) => {
-  if (event.data === "reload-window") {
-    self.clients.matchAll({ type: "window" }).then((clients) => {
-      clients.forEach((client) => client.navigate(client.url));
-    });
-  }
 });

@@ -11,7 +11,6 @@
   const NO_UPDATE_POPUP_SECONDS = 75;
   const REPORT_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfFiegPH6GsWIWERzfbtptJW2GMk4exkrTQsdqlR2-2oj83zA/viewform";
   const DISCORD_URL = "https://discord.gg/DP2hM7RRhR";
-  const SUIKA_URL = "https://script.google.com/macros/s/AKfycbzIXFHGjKgrttNYiig9M3opVxFFx0i71Reqak4WK25-froyawNZjhlRwg3vuqGqJQM2_A/exec";
   const IMAGE_POOL = [
     "Assets/1fae857e0461c12d3f6a7b8dd795a591.jpg",
     "Assets/1_PBLWZdNHuEnq3SNVW0wEPg.jpg",
@@ -47,7 +46,7 @@
     "If the split files were cached earlier, the download stage can jump ahead while rebuild still takes a while in memory.",
     "The Last Update badge shows if work is still moving. Green is fresh, yellow is slowing down, red means it may be stuck.",
     "Starting Emulator is the final handoff. If that stage freezes, the issue is usually the host or browser environment, not the split files.",
-    "Highway Hustle saves your best score in this browser, and Suika stays available while the loader runs."
+    "Highway Hustle saves your best score in this browser while the loader runs."
   ];
 
   const loaderRoot = document.getElementById("loader-root");
@@ -77,16 +76,9 @@
     '  </section>',
     '  <aside class="game-panel" id="game-panel">',
     '    <div class="game-head"><span class="game-title">Loading Extras</span><div class="game-actions"><button type="button" id="game-pause">Pause</button><button type="button" id="game-collapse">Collapse</button></div></div>',
-    '    <div class="game-tabs"><button type="button" class="game-tab is-active" id="tab-hustle">Highway Hustle</button><button type="button" class="game-tab" id="tab-suika">Suika</button></div>',
     '    <div class="game-stage is-active" id="stage-hustle">',
     '      <canvas class="game-canvas" id="game-canvas" width="300" height="172" aria-label="Loading mini-game"></canvas>',
     '      <div class="game-meta"><span id="game-score">Score: 0</span><span id="game-best">Best: 0</span></div>',
-    '    </div>',
-    '    <div class="game-stage" id="stage-suika">',
-    '      <div class="suika-wrap">',
-    '        <iframe class="suika-frame" src="' + SUIKA_URL + '" loading="lazy" referrerpolicy="no-referrer" allowfullscreen title="Suika Watermelon Game"></iframe>',
-    '        <div class="suika-fallback"><div class="suika-fallback-title">Suika Watermelon Game</div><div class="suika-fallback-text">Some sites block embedding inside iframes. If that happens here, open Suika in a new tab.</div><a class="support-link suika-link" href="' + SUIKA_URL + '" target="_blank" rel="noreferrer">Open Suika</a></div>',
-    '      </div>',
     '    </div>',
     '  </aside>',
     '</div>',
@@ -120,9 +112,7 @@
   const gamePauseButton = document.getElementById("game-pause");
   const gameCollapseButton = document.getElementById("game-collapse");
   const hustleTab = document.getElementById("tab-hustle");
-  const suikaTab = document.getElementById("tab-suika");
   const hustleStage = document.getElementById("stage-hustle");
-  const suikaStage = document.getElementById("stage-suika");
   const gameCanvas = document.getElementById("game-canvas");
   const gameContext = gameCanvas.getContext("2d");
   const gameScoreNode = document.getElementById("game-score");
@@ -141,7 +131,6 @@
   let popupDismissedUntil = 0;
   let gamePaused = false;
   let gameCollapsed = false;
-  let activeMiniGame = "hustle";
   let tipIndex = 0;
   let cacheHandlePromise = null;
   const preloadedImages = [];
@@ -427,9 +416,10 @@
     return new Promise((resolve, reject) => {
       const started = Date.now();
       let settled = false;
+      let sawPossibleWorkerFailure = false;
       const cleanup = () => {
         clearInterval(timer);
-        window.removeEventListener("error", onError);
+        window.removeEventListener("error", onError, true);
         window.removeEventListener("unhandledrejection", onRejection);
       };
       const fail = (message) => {
@@ -454,16 +444,18 @@
       const onError = (event) => {
         const message = String(event.message || "");
         if (looksLikePlayError(message) || String(event.filename || "").includes("Play.js")) {
+          sawPossibleWorkerFailure = true;
           fail("The emulator worker failed while starting. Play.js could not finish loading on this host.");
         }
       };
       const onRejection = (event) => {
         const reason = event.reason && (event.reason.message || String(event.reason));
         if (looksLikePlayError(String(reason || ""))) {
+          sawPossibleWorkerFailure = true;
           fail("The emulator hit a startup error while loading Play.js or Play.wasm.");
         }
       };
-      window.addEventListener("error", onError);
+      window.addEventListener("error", onError, true);
       window.addEventListener("unhandledrejection", onRejection);
       const timer = setInterval(() => {
         const input = document.querySelector('input[type="file"]');
@@ -480,12 +472,16 @@
           seconds + "s waiting for emulator",
           false
         );
+        if (seconds >= 30 && sawPossibleWorkerFailure) {
+          fail("The emulator worker crashed during startup. This host is still failing before the disc picker appears.");
+          return;
+        }
         if (seconds > 18 && !window.crossOriginIsolated) {
           fail("The emulator cannot boot on this host because cross-origin isolation headers are missing.");
           return;
         }
-        if (seconds > 90) {
-          fail("The emulator startup timed out before its file input appeared.");
+        if (seconds > 45) {
+          fail("The emulator startup timed out before its file input appeared. Play.js likely crashed or stalled on this host.");
         }
       }, 500);
     });
@@ -525,23 +521,6 @@
     setTimeout(() => {
       if (!popupShown) supportPopup.hidden = true;
     }, 180);
-  }
-
-  function setMiniGame(tabName) {
-    activeMiniGame = tabName;
-    hustleTab.classList.toggle("is-active", tabName === "hustle");
-    suikaTab.classList.toggle("is-active", tabName === "suika");
-    hustleStage.classList.toggle("is-active", tabName === "hustle");
-    suikaStage.classList.toggle("is-active", tabName === "suika");
-    if (tabName !== "hustle") {
-      gamePaused = true;
-      gamePauseButton.textContent = "Pause";
-      gamePauseButton.disabled = true;
-    } else if (!gameCollapsed) {
-      gamePaused = false;
-      gamePauseButton.textContent = "Pause";
-      gamePauseButton.disabled = false;
-    }
   }
 
   async function autoload() {
@@ -668,7 +647,7 @@
   }
 
   function updateGame(delta) {
-    if (gamePaused || gameCollapsed || activeMiniGame !== "hustle") return;
+    if (gamePaused || gameCollapsed) return;
     game.roadOffset = (game.roadOffset + delta * 78) % 40;
     game.playerX += (laneCenter(game.targetLane) - game.playerX) * Math.min(delta * 5, 1);
     game.score += delta * 3;
@@ -781,13 +760,13 @@
       hideSupportPopup(true);
       return;
     }
-    if (activeMiniGame !== "hustle" || gameCollapsed) return;
+    if (gameCollapsed) return;
     if (event.key === "ArrowLeft" || event.key === "a" || event.key === "A") game.targetLane = Math.max(0, game.targetLane - 1);
     if (event.key === "ArrowRight" || event.key === "d" || event.key === "D") game.targetLane = Math.min(game.laneCount - 1, game.targetLane + 1);
   }
 
   gamePauseButton.addEventListener("click", () => {
-    if (gameCollapsed || activeMiniGame !== "hustle") return;
+    if (gameCollapsed) return;
     gamePaused = !gamePaused;
     gamePauseButton.textContent = gamePaused ? "Resume" : "Pause";
   });
@@ -795,26 +774,15 @@
   gameCollapseButton.addEventListener("click", () => {
     gameCollapsed = !gameCollapsed;
     gamePanel.classList.toggle("is-collapsed", gameCollapsed);
-    gamePauseButton.disabled = gameCollapsed || activeMiniGame !== "hustle";
+    gamePauseButton.disabled = gameCollapsed;
     if (gameCollapsed) {
       gamePaused = true;
       gamePauseButton.textContent = "Paused";
-    } else if (activeMiniGame === "hustle") {
-      gamePaused = false;
-      gamePauseButton.textContent = "Pause";
     } else {
+      gamePaused = false;
       gamePauseButton.textContent = "Pause";
     }
     gameCollapseButton.textContent = gameCollapsed ? "Expand" : "Collapse";
-  });
-
-  hustleTab.addEventListener("click", () => {
-    setMiniGame("hustle");
-    gamePauseButton.disabled = gameCollapsed;
-  });
-
-  suikaTab.addEventListener("click", () => {
-    setMiniGame("suika");
   });
 
   supportCloseButton.addEventListener("click", () => hideSupportPopup(true));
@@ -831,7 +799,7 @@
 
   preloadImages();
   resetRun();
-  setMiniGame("hustle");
+  hustleStage.classList.add("is-active");
   swapBackground(true);
   bgTimer = setInterval(() => swapBackground(false), 9000);
   tipTimer = setInterval(() => {

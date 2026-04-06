@@ -25,7 +25,7 @@
   <div class="global-row"><div class="global-column"><div><canvas id="outputCanvas" width="640" height="480" tabindex="-1"></canvas></div><div id="root"><div>Loading...</div></div></div><div class="global-column"></div></div>
   <script>
     (function () {
-      var BUILD_VERSION = "8";
+      var BUILD_VERSION = "8.1";
       window.__BUILD_VERSION = BUILD_VERSION;
       ["main.5a525eca.css", "loader.css"].forEach(function (href) {
         var link = document.createElement("link");
@@ -34,11 +34,7 @@
         document.head.appendChild(link);
       });
       if (!('serviceWorker' in navigator)) return;
-      navigator.serviceWorker.register('./coi-serviceworker.js?v=' + BUILD_VERSION).then(function (registration) {
-        if (registration.active && navigator.serviceWorker.controller && !window.crossOriginIsolated && !sessionStorage.getItem('coi-sw-msg')) {
-          sessionStorage.setItem('coi-sw-msg', '1');
-          navigator.serviceWorker.controller.postMessage('reload-window');
-        }
+      navigator.serviceWorker.register('./coi-serviceworker.js?v=' + BUILD_VERSION).then(function () {
         if (!navigator.serviceWorker.controller) return;
         if (!window.crossOriginIsolated && !sessionStorage.getItem('coi-reloaded')) {
           sessionStorage.setItem('coi-reloaded', '1');
@@ -47,6 +43,6 @@
       }).catch(function () {});
     })();
   </script>
-  <script src="loader.js?v=8"></script>
+  <script src="loader.js?v=8.1"></script>
 </body>
 </html>
