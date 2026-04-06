@@ -11,11 +11,13 @@
   <meta property="og:description" content="A browser-based GTA San Andreas Play!.js build with split-file loading, caching, and a custom loader.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://staticquasar931.github.io/GTA-San-Andreas/">
+  <meta property="og:site_name" content="StaticQuasar931 Games">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="GTA San Andreas Browser Build">
+  <meta name="twitter:description" content="Play GTA San Andreas in your browser with split-file loading, caching, and a custom GTA-themed loader.">
   <meta name="robots" content="index,follow">
   <link rel="icon" href="data:,">
   <link rel="canonical" href="https://staticquasar931.github.io/GTA-San-Andreas/">
-  <link rel="stylesheet" href="main.5a525eca.css">
-  <link rel="stylesheet" href="loader.css">
 </head>
 <body>
   <div id="loader-root"></div>
@@ -23,8 +25,20 @@
   <div class="global-row"><div class="global-column"><div><canvas id="outputCanvas" width="640" height="480" tabindex="-1"></canvas></div><div id="root"><div>Loading...</div></div></div><div class="global-column"></div></div>
   <script>
     (function () {
+      var BUILD_VERSION = "2026-04-05-4";
+      window.__BUILD_VERSION = BUILD_VERSION;
+      ["main.5a525eca.css", "loader.css"].forEach(function (href) {
+        var link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = href + "?v=" + BUILD_VERSION;
+        document.head.appendChild(link);
+      });
       if (!('serviceWorker' in navigator)) return;
-      navigator.serviceWorker.register('./coi-serviceworker.js').then(function () {
+      navigator.serviceWorker.register('./coi-serviceworker.js?v=' + BUILD_VERSION).then(function (registration) {
+        if (registration.active && navigator.serviceWorker.controller && !window.crossOriginIsolated && !sessionStorage.getItem('coi-sw-msg')) {
+          sessionStorage.setItem('coi-sw-msg', '1');
+          navigator.serviceWorker.controller.postMessage('reload-window');
+        }
         if (!navigator.serviceWorker.controller) return;
         if (!window.crossOriginIsolated && !sessionStorage.getItem('coi-reloaded')) {
           sessionStorage.setItem('coi-reloaded', '1');
@@ -33,6 +47,6 @@
       }).catch(function () {});
     })();
   </script>
-  <script src="loader.js"></script>
+  <script src="loader.js?v=2026-04-05-4"></script>
 </body>
 </html>

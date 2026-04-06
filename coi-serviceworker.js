@@ -7,7 +7,7 @@ self.addEventListener("fetch", (event) => {
 
   event.respondWith((async () => {
     const response = await fetch(request);
-    if (response.status === 0) return response;
+    if (!response || response.status === 0) return response;
 
     const headers = new Headers(response.headers);
     headers.set("Cross-Origin-Embedder-Policy", "require-corp");
@@ -20,4 +20,12 @@ self.addEventListener("fetch", (event) => {
       headers
     });
   })());
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data === "reload-window") {
+    self.clients.matchAll({ type: "window" }).then((clients) => {
+      clients.forEach((client) => client.navigate(client.url));
+    });
+  }
 });
