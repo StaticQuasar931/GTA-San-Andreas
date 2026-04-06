@@ -128,6 +128,7 @@
   let bgTimer = 0;
   let rafId = 0;
   let audioContext = null;
+  let canPlayUiSound = false;
   let popupShown = false;
   let popupDismissedUntil = 0;
   let gamePaused = false;
@@ -491,8 +492,12 @@
   }
 
   function playPopupSound() {
+    if (!canPlayUiSound) return;
     try {
       if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioContext.state === "suspended") {
+        audioContext.resume().catch(() => {});
+      }
       const now = audioContext.currentTime;
       const oscillator = audioContext.createOscillator();
       const gain = audioContext.createGain();
@@ -797,6 +802,8 @@
   });
 
   supportCloseButton.addEventListener("click", () => hideSupportPopup(true));
+  window.addEventListener("pointerdown", () => { canPlayUiSound = true; }, { once: true });
+  window.addEventListener("keydown", () => { canPlayUiSound = true; }, { once: true });
 
   loaderRoot.addEventListener("mousemove", (event) => {
     const x = event.clientX / window.innerWidth - 0.5;
