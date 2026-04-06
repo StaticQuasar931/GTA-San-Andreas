@@ -9,6 +9,7 @@
   const SCORE_KEY = "gtasa-highway-hustle-best";
   const POPUP_COOLDOWN_MS = 10 * 60 * 1000;
   const NO_UPDATE_POPUP_SECONDS = 75;
+  const TIP_ROTATE_MS = 30000;
   const REPORT_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfFiegPH6GsWIWERzfbtptJW2GMk4exkrTQsdqlR2-2oj83zA/viewform";
   const DISCORD_URL = "https://discord.gg/DP2hM7RRhR";
   const IMAGE_POOL = [
@@ -138,7 +139,8 @@
   const progressState = {
     stage: "Preparing",
     downloadBytes: 0,
-    assembleParts: 0
+    assembleParts: 0,
+    stageFraction: 0
   };
 
   const game = {
@@ -276,6 +278,7 @@
   function setProgress(stageFraction, stageText, statusText, liveText, sizeText, shouldMark) {
     const safeFraction = Math.max(0, Math.min(stageFraction, 1));
     progressState.stage = stageText;
+    progressState.stageFraction = safeFraction;
     stageNode.textContent = stageText;
     statusNode.textContent = statusText;
     liveNode.textContent = liveText;
@@ -465,7 +468,7 @@
         }
         const seconds = Math.floor((Date.now() - started) / 1000);
         setProgress(
-          Math.min(0.96, seconds / 18),
+          progressState.stageFraction || 0.08,
           "Starting Emulator",
           "Waiting for emulator boot...",
           "Starting Play!.js and waiting for its disc picker to appear.",
@@ -552,6 +555,14 @@
 
       const file = await animateAssembly(partBlobs);
       await bundlePromise;
+      setProgress(
+        0.08,
+        "Starting Emulator",
+        "Booting emulator runtime...",
+        "Play!.js is loading and preparing its disc picker.",
+        "Waiting for emulator",
+        true
+      );
       const input = await waitForInput();
       const transfer = new DataTransfer();
       transfer.items.add(file);
@@ -805,7 +816,7 @@
   tipTimer = setInterval(() => {
     tipIndex = (tipIndex + 1) % TIPS.length;
     noteNode.textContent = TIPS[tipIndex];
-  }, 9000);
+  }, TIP_ROTATE_MS);
   noteNode.textContent = TIPS[0];
   heartbeatTimer = setInterval(updateHeartbeat, 1000);
   window.addEventListener("keydown", handleKey);
