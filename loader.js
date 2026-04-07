@@ -75,15 +75,17 @@
     '    </div>',
     '    <div class="loader-live" id="loader-live">Loader ready.</div>',
     '    <div class="loader-note" id="loader-note">Split files will download first, then rebuild into one ISO before launch.</div>',
-    '    <div class="loader-action" id="loader-action" hidden><button type="button" id="loader-start">Start Game</button></div>',
     '  </section>',
     '  <aside class="game-panel" id="game-panel">',
-    '    <div class="game-head"><span class="game-title">Loading Extras</span><div class="game-actions"><button type="button" id="game-pause">Pause</button><button type="button" id="game-collapse">Collapse</button></div></div>',
+    '    <div class="game-head"><div><div class="game-title">Highway Hustle</div><div class="game-subtitle">To keep you distracted while GTA loads.</div></div><div class="game-actions"><button type="button" id="game-fullscreen">Fullscreen</button><button type="button" id="game-pause">Pause</button><button type="button" id="game-collapse">Collapse</button></div></div>',
     '    <div class="game-stage is-active" id="stage-hustle">',
     '      <canvas class="game-canvas" id="game-canvas" width="300" height="172" aria-label="Loading mini-game"></canvas>',
-    '      <div class="game-meta"><span id="game-score">Score: 0</span><span id="game-best">Best: 0</span></div>',
+    '      <div class="game-meta"><span id="game-score">Score: 0</span><span id="game-toggle-hint">Ctrl+G+H</span><span id="game-best">Best: 0</span></div>',
     '    </div>',
     '  </aside>',
+    '</div>',
+    '<div class="continue-overlay" id="loader-action" hidden>',
+    '  <button type="button" class="continue-button" id="loader-start"><span class="continue-label">Continue</span><span class="continue-help">Your disc is ready. Continue into the emulator.</span></button>',
     '</div>',
     '<div class="support-popup" id="support-popup" hidden>',
     '  <div class="support-card" role="dialog" aria-modal="true" aria-labelledby="support-title">',
@@ -114,12 +116,14 @@
   const supportPopup = document.getElementById("support-popup");
   const supportCloseButton = document.getElementById("support-close");
   const gamePanel = document.getElementById("game-panel");
+  const fullscreenButton = document.getElementById("game-fullscreen");
   const gamePauseButton = document.getElementById("game-pause");
   const gameCollapseButton = document.getElementById("game-collapse");
   const hustleStage = document.getElementById("stage-hustle");
   const gameCanvas = document.getElementById("game-canvas");
   const gameContext = gameCanvas.getContext("2d");
   const gameScoreNode = document.getElementById("game-score");
+  const gameToggleHintNode = document.getElementById("game-toggle-hint");
   const gameBestNode = document.getElementById("game-best");
   let currentLayer = 0;
   let currentImage = "";
@@ -135,10 +139,12 @@
   let popupShown = false;
   let popupDismissedUntil = 0;
   let userActivated = false;
+  let overlayMode = false;
   let gamePaused = false;
   let gameCollapsed = false;
   let tipIndex = 0;
   let cacheHandlePromise = null;
+  const heldKeys = new Set();
   const preloadedImages = [];
 
   const progressState = {
@@ -533,9 +539,13 @@
     if (userActivated) return Promise.resolve();
     actionNode.hidden = false;
     startButton.disabled = false;
+    startButton.classList.remove("is-pressed");
+    playPopupSound();
     return new Promise((resolve) => {
       const onStart = () => {
         markUserActivation();
+        startButton.classList.add("is-pressed");
+        playPopupSound();
         startButton.disabled = true;
         actionNode.hidden = true;
         startButton.removeEventListener("click", onStart);
@@ -560,6 +570,43 @@
     setTimeout(() => {
       if (!popupShown) supportPopup.hidden = true;
     }, 180);
+  }
+
+  function setGamePanelHidden(hidden) {
+    gamePanel.classList.toggle("is-hidden", hidden);
+  }
+
+  function toggleGamePanel() {
+    if (!overlayMode) return;
+    const nextHidden = !gamePanel.classList.contains("is-hidden");
+    setGamePanelHidden(nextHidden);
+  }
+
+  function enterOverlayMode() {
+    overlayMode = true;
+    loaderRoot.classList.add("is-overlay-mode");
+    setGamePanelHidden(true);
+    gameCollapsed = false;
+    gamePauseButton.disabled = false;
+    gamePauseButton.textContent = "Pause";
+    gameCollapseButton.textContent = "Collapse";
+    if (heartbeatTimer) clearInterval(heartbeatTimer);
+    if (tipTimer) clearInterval(tipTimer);
+    if (bgTimer) clearInterval(bgTimer);
+    hideSupportPopup(false);
+  }
+
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        return;
+      }
+      const target = document.documentElement;
+      if (target.requestFullscreen) {
+        await target.requestFullscreen();
+      }
+    } catch {}
   }
 
   async function autoload() {
@@ -593,11 +640,11 @@
         1,
         "Rebuilding ISO",
         "Disc image ready.",
-        "The ISO is rebuilt. Click Start Game to hand it to the emulator and unlock audio cleanly.",
+        "The ISO is rebuilt. Continue when you are ready to hand it to the emulator.",
         humanSize(TOTAL_BYTES) + " ready",
         true
       );
-      noteNode.textContent = "Starting the emulator after a click gives Chrome a proper user gesture, which helps audio start more cleanly.";
+      noteNode.textContent = "Continue gives Chrome a real user gesture before Play!.js boots, which helps audio start more cleanly.";
       await waitForUserStart();
       setProgress(
         0.03,
@@ -624,10 +671,10 @@
       hideSupportPopup(false);
       setProgress(1, "Launching", "Launching GTA: San Andreas...", "Disc image handed to the emulator. Finishing startup.", "ISO ready");
       etaNode.textContent = "ETA: done";
+      noteNode.textContent = "Use Ctrl+G+H if you want Highway Hustle back while GTA is still loading.";
+      gameToggleHintNode.textContent = "Ctrl+G+H";
       setTimeout(() => {
-        loaderRoot.style.transition = "opacity 0.45s ease";
-        loaderRoot.style.opacity = "0";
-        setTimeout(() => loaderRoot.remove(), 520);
+        enterOverlayMode();
       }, 450);
     } catch (error) {
       statusNode.textContent = error.message;
@@ -820,8 +867,14 @@
   }
 
   function handleKey(event) {
+    heldKeys.add(String(event.key || "").toLowerCase());
     if (event.key === "Escape" && popupShown) {
       hideSupportPopup(true);
+      return;
+    }
+    if (event.ctrlKey && (event.key === "h" || event.key === "H") && heldKeys.has("g")) {
+      toggleGamePanel();
+      event.preventDefault();
       return;
     }
     if (gameCollapsed) return;
@@ -829,10 +882,19 @@
     if (event.key === "ArrowRight" || event.key === "d" || event.key === "D") game.targetLane = Math.min(game.laneCount - 1, game.targetLane + 1);
   }
 
+  function handleKeyUp(event) {
+    heldKeys.delete(String(event.key || "").toLowerCase());
+  }
+
   gamePauseButton.addEventListener("click", () => {
     if (gameCollapsed) return;
     gamePaused = !gamePaused;
     gamePauseButton.textContent = gamePaused ? "Resume" : "Pause";
+  });
+
+  fullscreenButton.addEventListener("click", () => {
+    markUserActivation();
+    toggleFullscreen();
   });
 
   gameCollapseButton.addEventListener("click", () => {
@@ -852,6 +914,7 @@
   supportCloseButton.addEventListener("click", () => hideSupportPopup(true));
   window.addEventListener("pointerdown", markUserActivation, { once: true });
   window.addEventListener("keydown", markUserActivation, { once: true });
+  window.addEventListener("keyup", handleKeyUp);
 
   loaderRoot.addEventListener("mousemove", (event) => {
     const x = event.clientX / window.innerWidth - 0.5;
