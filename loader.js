@@ -542,7 +542,10 @@
   }
 
   function waitForUserStart() {
-    if (userActivated) return Promise.resolve();
+    if (userActivated) {
+      if (actionNode && actionNode.isConnected) actionNode.remove();
+      return Promise.resolve();
+    }
     actionNode.hidden = false;
     startButton.disabled = false;
     startButton.classList.remove("is-pressed");
@@ -554,7 +557,10 @@
         playPopupSound();
         startButton.disabled = true;
         actionNode.hidden = true;
-        actionNode.remove();
+        actionNode.classList.add("is-dismissed");
+        setTimeout(() => {
+          if (actionNode && actionNode.isConnected) actionNode.remove();
+        }, 180);
         startButton.removeEventListener("click", onStart);
         resolve();
       };

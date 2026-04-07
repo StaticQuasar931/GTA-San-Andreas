@@ -206,6 +206,14 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
   padding: 22px;
   background: radial-gradient(circle at center, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.58) 72%);
 }
+.continue-overlay[hidden] {
+  display: none !important;
+}
+.continue-overlay.is-dismissed {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
 .continue-button {
   width: min(460px, calc(100vw - 34px));
   min-height: 110px;
@@ -243,12 +251,12 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
   50% { transform: scale(1.015); box-shadow: 0 0 0 1px rgba(255, 231, 183, 0.12) inset, 0 0 42px rgba(255, 168, 61, 0.32); }
 }
 .game-panel {
-  width: 340px;
-  padding: 12px;
+  width: 322px;
+  padding: 10px;
   pointer-events: auto;
 }
 .game-panel.is-collapsed {
-  width: 172px;
+  width: 156px;
 }
 .game-panel.is-hidden {
   display: none;
@@ -258,20 +266,20 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
   display: none;
 }
 .game-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: 8px;
 }
 .game-title {
-  font-size: 0.86rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #ffd79b;
 }
 .game-subtitle {
-  margin-top: 4px;
-  font-size: 0.72rem;
+  margin-top: 2px;
+  font-size: 0.66rem;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
@@ -280,9 +288,9 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
 }
 .game-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 4px;
 }
 .game-actions button,
 .game-tab,
@@ -295,9 +303,10 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
   cursor: pointer;
 }
 .game-actions button {
-  min-height: 30px;
-  padding: 0 9px;
-  font-size: 0.67rem;
+  min-height: 27px;
+  padding: 0 8px;
+  font-size: 0.61rem;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 .game-actions button:disabled {
@@ -306,7 +315,7 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
 }
 .game-stage {
   display: none;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 .game-stage.is-active {
   display: block;
@@ -324,13 +333,14 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
-  margin-top: 8px;
-  font-size: 0.78rem;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 0.72rem;
   color: #ffe6b6;
 }
 #game-toggle-hint {
   opacity: 0.82;
+  flex: 1 1 auto;
   text-align: center;
 }
 .support-popup {
