@@ -85,7 +85,7 @@
     '  </aside>',
     '</div>',
     '<div class="continue-overlay" id="loader-action" hidden>',
-    '  <button type="button" class="continue-button" id="loader-start"><span class="continue-label">Continue</span><span class="continue-help">Your disc is ready. Continue into the emulator.</span></button>',
+    '  <button type="button" class="continue-button" id="loader-start"><span class="continue-label">Continue</span><span class="continue-help">Your disc is ready. Click once to wake audio and begin the emulator.</span></button>',
     '</div>',
     '<div class="support-popup" id="support-popup" hidden>',
     '  <div class="support-card" role="dialog" aria-modal="true" aria-labelledby="support-title">',
@@ -134,6 +134,7 @@
   let tipTimer = 0;
   let bgTimer = 0;
   let rafId = 0;
+  let bundlePromise = null;
   let audioContext = null;
   let canPlayUiSound = false;
   let popupShown = false;
@@ -354,7 +355,8 @@
   }
 
   function injectBundle() {
-    return new Promise((resolve, reject) => {
+    if (bundlePromise) return bundlePromise;
+    bundlePromise = new Promise((resolve, reject) => {
       if (document.querySelector('script[data-play-bundle="1"]')) {
         resolve();
         return;
@@ -367,6 +369,7 @@
       script.onerror = () => reject(new Error("Failed to load emulator bundle."));
       document.body.appendChild(script);
     });
+    return bundlePromise;
   }
 
   async function fetchPart(index, onProgress) {
@@ -533,6 +536,9 @@
         audioContext.resume().catch(() => {});
       }
     } catch {}
+    if (progressState.stage !== "Starting Emulator" && progressState.stage !== "Launching") {
+      injectBundle().catch(() => {});
+    }
   }
 
   function waitForUserStart() {
@@ -548,6 +554,7 @@
         playPopupSound();
         startButton.disabled = true;
         actionNode.hidden = true;
+        actionNode.remove();
         startButton.removeEventListener("click", onStart);
         resolve();
       };
@@ -585,6 +592,7 @@
   function enterOverlayMode() {
     overlayMode = true;
     loaderRoot.classList.add("is-overlay-mode");
+    if (actionNode && actionNode.isConnected) actionNode.remove();
     setGamePanelHidden(true);
     gameCollapsed = false;
     gamePauseButton.disabled = false;
@@ -640,11 +648,15 @@
         1,
         "Rebuilding ISO",
         "Disc image ready.",
-        "The ISO is rebuilt. Continue when you are ready to hand it to the emulator.",
+        userActivated
+          ? "Your earlier click already unlocked the emulator. Finishing the handoff now."
+          : "The ISO is rebuilt. Continue when you are ready to hand it to the emulator.",
         humanSize(TOTAL_BYTES) + " ready",
         true
       );
-      noteNode.textContent = "Continue gives Chrome a real user gesture before Play!.js boots, which helps audio start more cleanly.";
+      noteNode.textContent = userActivated
+        ? "A click you made earlier already unlocked audio, so the emulator can continue automatically."
+        : "Continue gives Chrome a real user gesture before Play!.js boots, which helps audio start more cleanly.";
       await waitForUserStart();
       setProgress(
         0.03,
