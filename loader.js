@@ -9,7 +9,7 @@
   const SCORE_KEY = "gtasa-highway-hustle-best";
   const POPUP_COOLDOWN_MS = 10 * 60 * 1000;
   const NO_UPDATE_POPUP_SECONDS = 75;
-  const TIP_ROTATE_MS = 30000;
+  const TIP_ROTATE_MS = 90000;
   const REPORT_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfFiegPH6GsWIWERzfbtptJW2GMk4exkrTQsdqlR2-2oj83zA/viewform";
   const DISCORD_URL = "https://discord.gg/DP2hM7RRhR";
   const IMAGE_POOL = [
@@ -47,6 +47,7 @@
     "If the split files were cached earlier, the download stage can jump ahead while rebuild still takes a while in memory.",
     "The Last Update badge shows if work is still moving. Green is fresh, yellow is slowing down, red means it may be stuck.",
     "Starting Emulator is the final handoff. If that stage freezes, the issue is usually the host or browser environment, not the split files.",
+    "Chrome is the strongest option for this build right now. Firefox is still much more likely to fail before the game starts.",
     "Highway Hustle saves your best score in this browser while the loader runs."
   ];
 
@@ -74,6 +75,7 @@
     '    </div>',
     '    <div class="loader-live" id="loader-live">Loader ready.</div>',
     '    <div class="loader-note" id="loader-note">Split files will download first, then rebuild into one ISO before launch.</div>',
+    '    <div class="loader-action" id="loader-action" hidden><button type="button" id="loader-start">Start Game</button></div>',
     '  </section>',
     '  <aside class="game-panel" id="game-panel">',
     '    <div class="game-head"><span class="game-title">Loading Extras</span><div class="game-actions"><button type="button" id="game-pause">Pause</button><button type="button" id="game-collapse">Collapse</button></div></div>',
@@ -107,12 +109,13 @@
   const heartbeatNode = document.getElementById("loader-heartbeat");
   const liveNode = document.getElementById("loader-live");
   const noteNode = document.getElementById("loader-note");
+  const actionNode = document.getElementById("loader-action");
+  const startButton = document.getElementById("loader-start");
   const supportPopup = document.getElementById("support-popup");
   const supportCloseButton = document.getElementById("support-close");
   const gamePanel = document.getElementById("game-panel");
   const gamePauseButton = document.getElementById("game-pause");
   const gameCollapseButton = document.getElementById("game-collapse");
-  const hustleTab = document.getElementById("tab-hustle");
   const hustleStage = document.getElementById("stage-hustle");
   const gameCanvas = document.getElementById("game-canvas");
   const gameContext = gameCanvas.getContext("2d");
@@ -131,6 +134,7 @@
   let canPlayUiSound = false;
   let popupShown = false;
   let popupDismissedUntil = 0;
+  let userActivated = false;
   let gamePaused = false;
   let gameCollapsed = false;
   let tipIndex = 0;
@@ -514,6 +518,33 @@
     } catch {}
   }
 
+  function markUserActivation() {
+    userActivated = true;
+    canPlayUiSound = true;
+    try {
+      if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioContext.state === "suspended") {
+        audioContext.resume().catch(() => {});
+      }
+    } catch {}
+  }
+
+  function waitForUserStart() {
+    if (userActivated) return Promise.resolve();
+    actionNode.hidden = false;
+    startButton.disabled = false;
+    return new Promise((resolve) => {
+      const onStart = () => {
+        markUserActivation();
+        startButton.disabled = true;
+        actionNode.hidden = true;
+        startButton.removeEventListener("click", onStart);
+        resolve();
+      };
+      startButton.addEventListener("click", onStart);
+    });
+  }
+
   function showSupportPopup() {
     if (popupShown || Date.now() < popupDismissedUntil) return;
     popupShown = true;
@@ -535,7 +566,6 @@
     try {
       setProgress(0.03, "Preparing", "Checking browser environment...", "Loader started.", "0 B / " + humanSize(TOTAL_BYTES));
       await ensureIsolationReady();
-      const bundlePromise = injectBundle();
 
       const partBlobs = [];
       let totalLoaded = 0;
@@ -559,7 +589,25 @@
       }
 
       const file = await animateAssembly(partBlobs);
-      await bundlePromise;
+      setProgress(
+        1,
+        "Rebuilding ISO",
+        "Disc image ready.",
+        "The ISO is rebuilt. Click Start Game to hand it to the emulator and unlock audio cleanly.",
+        humanSize(TOTAL_BYTES) + " ready",
+        true
+      );
+      noteNode.textContent = "Starting the emulator after a click gives Chrome a proper user gesture, which helps audio start more cleanly.";
+      await waitForUserStart();
+      setProgress(
+        0.03,
+        "Starting Emulator",
+        "Loading emulator runtime...",
+        "Starting Play!.js after your click and preparing the disc picker.",
+        "Loading runtime",
+        true
+      );
+      await injectBundle();
       setProgress(
         0.08,
         "Starting Emulator",
@@ -802,8 +850,8 @@
   });
 
   supportCloseButton.addEventListener("click", () => hideSupportPopup(true));
-  window.addEventListener("pointerdown", () => { canPlayUiSound = true; }, { once: true });
-  window.addEventListener("keydown", () => { canPlayUiSound = true; }, { once: true });
+  window.addEventListener("pointerdown", markUserActivation, { once: true });
+  window.addEventListener("keydown", markUserActivation, { once: true });
 
   loaderRoot.addEventListener("mousemove", (event) => {
     const x = event.clientX / window.innerWidth - 0.5;

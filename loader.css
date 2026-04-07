@@ -180,6 +180,25 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
   line-height: 1.4;
   color: rgba(255, 236, 193, 0.74);
 }
+.loader-action {
+  margin-top: 10px;
+}
+.loader-action button {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 214, 143, 0.28);
+  background: linear-gradient(180deg, rgba(255, 188, 92, 0.22), rgba(255, 140, 46, 0.16));
+  color: #fff3d5;
+  font: inherit;
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.loader-action button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
 .game-panel {
   width: 340px;
   padding: 12px;
