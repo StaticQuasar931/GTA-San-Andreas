@@ -1,76 +1,48 @@
-$ErrorActionPreference = "Stop"
+param([int]$Port = 8765)
 
-$root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ErrorActionPreference = "Stop"
+$root = [System.IO.Path]::GetFullPath((Split-Path -Parent $MyInvocation.MyCommand.Path))
+$rootPrefix = $root.TrimEnd([System.IO.Path]::DirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
 $listener = [System.Net.HttpListener]::new()
-$listener.Prefixes.Add("http://127.0.0.1:8000/")
+$listener.Prefixes.Add("http://127.0.0.1:$Port/")
 $listener.Start()
 
 $contentTypes = @{
-  ".css"  = "text/css"
-  ".htm"  = "text/html"
-  ".html" = "text/html"
-  ".iso"  = "application/octet-stream"
-  ".js"   = "application/javascript"
-  ".json" = "application/json"
-  ".map"  = "application/json"
+  ".css" = "text/css; charset=utf-8"
+  ".html" = "text/html; charset=utf-8"
+  ".js" = "application/javascript; charset=utf-8"
+  ".json" = "application/json; charset=utf-8"
   ".wasm" = "application/wasm"
+  ".iso" = "application/octet-stream"
+  ".001" = "application/octet-stream"
 }
 
-Write-Host "Serving $root at http://127.0.0.1:8000"
+Write-Host "Serving $root at http://127.0.0.1:$Port/?source=local"
 Write-Host "Press Ctrl+C to stop."
 
 try {
   while ($listener.IsListening) {
     $context = $listener.GetContext()
-    $request = $context.Request
     $response = $context.Response
-
     try {
-      $relativePath = [System.Uri]::UnescapeDataString($request.Url.AbsolutePath.TrimStart('/'))
-      if ([string]::IsNullOrWhiteSpace($relativePath)) {
-        $relativePath = "index.html"
-      }
-
-      $candidatePath = Join-Path $root $relativePath
-      $fullPath = [System.IO.Path]::GetFullPath($candidatePath)
-      if (-not $fullPath.StartsWith([System.IO.Path]::GetFullPath($root), [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "Blocked path traversal attempt."
-      }
-
-      if (Test-Path $fullPath -PathType Container) {
-        $fullPath = Join-Path $fullPath "index.html"
-      }
-
-      if (-not (Test-Path $fullPath -PathType Leaf)) {
-        $response.StatusCode = 404
-        $body = [System.Text.Encoding]::UTF8.GetBytes("Not found")
-        $response.OutputStream.Write($body, 0, $body.Length)
-        continue
-      }
-
-      $extension = [System.IO.Path]::GetExtension($fullPath).ToLowerInvariant()
-      $contentType = $contentTypes[$extension]
-      if (-not $contentType) {
-        $contentType = "application/octet-stream"
-      }
-
-      $bytes = [System.IO.File]::ReadAllBytes($fullPath)
-      $response.StatusCode = 200
-      $response.ContentType = $contentType
-      $response.ContentLength64 = $bytes.Length
+      $relative = [System.Uri]::UnescapeDataString($context.Request.Url.AbsolutePath.TrimStart('/'))
+      if ([string]::IsNullOrWhiteSpace($relative)) { $relative = "index.html" }
+      $path = [System.IO.Path]::GetFullPath((Join-Path $root $relative))
+      if (($path -ne $root) -and (-not $path.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase))) { throw "Blocked path." }
+      if (-not [System.IO.File]::Exists($path)) { $response.StatusCode = 404; throw "Not found." }
+      $extension = [System.IO.Path]::GetExtension($path).ToLowerInvariant()
+      $response.ContentType = if ($contentTypes.ContainsKey($extension)) { $contentTypes[$extension] } else { "application/octet-stream" }
       $response.Headers["Cross-Origin-Opener-Policy"] = "same-origin"
       $response.Headers["Cross-Origin-Embedder-Policy"] = "require-corp"
-      $response.Headers["Cross-Origin-Resource-Policy"] = "same-origin"
-      $response.OutputStream.Write($bytes, 0, $bytes.Length)
+      $response.Headers["Cross-Origin-Resource-Policy"] = "cross-origin"
+      $stream = [System.IO.File]::OpenRead($path)
+      try {
+        $response.ContentLength64 = $stream.Length
+        $stream.CopyTo($response.OutputStream, 1048576)
+      } finally { $stream.Dispose() }
     } catch {
-      if ($response.StatusCode -eq 200) {
-        $response.StatusCode = 500
-      }
-      $body = [System.Text.Encoding]::UTF8.GetBytes($_.Exception.Message)
-      $response.OutputStream.Write($body, 0, $body.Length)
-    } finally {
-      $response.OutputStream.Close()
-    }
+      if ($response.StatusCode -eq 200) { $response.StatusCode = 500 }
+    } finally { $response.OutputStream.Close() }
   }
 } finally {
   $listener.Stop()

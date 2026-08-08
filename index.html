@@ -2,47 +2,92 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>GTA San Andreas Browser Build</title>
-  <meta name="description" content="Play GTA San Andreas in your browser through a Play!.js web build with split ISO loading, caching, and a custom loading screen.">
-  <meta name="keywords" content="GTA San Andreas browser, GTA San Andreas web build, Play.js, Play!.js, PS2 emulator browser, StaticQuasar931 Games">
-  <meta name="theme-color" content="#0b0b0b">
-  <meta property="og:title" content="GTA San Andreas Browser Build">
-  <meta property="og:description" content="A browser-based GTA San Andreas Play!.js build with split-file loading, caching, and a custom loader.">
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://staticquasar931.github.io/GTA-San-Andreas/">
-  <meta property="og:site_name" content="StaticQuasar931 Games">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="GTA San Andreas Browser Build">
-  <meta name="twitter:description" content="Play GTA San Andreas in your browser with split-file loading, caching, and a custom GTA-themed loader.">
-  <meta name="robots" content="index,follow">
-  <link rel="icon" href="data:,">
-  <link rel="canonical" href="https://staticquasar931.github.io/GTA-San-Andreas/">
-</head>
-<body>
-  <div id="loader-root"></div>
-  <noscript>You need to enable JavaScript to run this app.</noscript>
-  <div class="global-row"><div class="global-column"><div><canvas id="outputCanvas" width="640" height="480" tabindex="-1"></canvas></div><div id="root"><div>Loading...</div></div></div><div class="global-column"></div></div>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d100b">
+  <meta name="description" content="Play GTA: San Andreas in a browser with an automatically downloaded and locally cached disc image.">
+  <title>GTA: San Andreas Browser Edition</title>
+  <link rel="stylesheet" href="main.css?v=20">
+  <link rel="stylesheet" href="app.css?v=20">
   <script>
-    (function () {
-      var BUILD_VERSION = "14";
-      window.__BUILD_VERSION = BUILD_VERSION;
-      ["main.5a525eca.css", "loader.css"].forEach(function (href) {
-        var link = document.createElement("link");
-        link.rel = "stylesheet";
-        link.href = href + "?v=" + BUILD_VERSION;
-        document.head.appendChild(link);
-      });
-      if (!('serviceWorker' in navigator)) return;
-      navigator.serviceWorker.register('./coi-serviceworker.js?v=' + BUILD_VERSION).then(function () {
-        if (!navigator.serviceWorker.controller) return;
-        if (!window.crossOriginIsolated && !sessionStorage.getItem('coi-reloaded')) {
-          sessionStorage.setItem('coi-reloaded', '1');
+    (async function () {
+      if (!("serviceWorker" in navigator)) return;
+      try {
+        await navigator.serviceWorker.register("./coi-serviceworker.js?v=20");
+        await navigator.serviceWorker.ready;
+        if (!navigator.serviceWorker.controller && !sessionStorage.getItem("coi-first-reload")) {
+          sessionStorage.setItem("coi-first-reload", "1");
+          location.reload();
+          return;
+        }
+        if (!crossOriginIsolated && navigator.serviceWorker.controller && !sessionStorage.getItem("coi-isolation-reload")) {
+          sessionStorage.setItem("coi-isolation-reload", "1");
           location.reload();
         }
-      }).catch(function () {});
+      } catch (error) {
+        window.__coiError = error;
+      }
     })();
   </script>
-  <script src="loader.js?v=14"></script>
+</head>
+<body>
+  <header class="site-header">
+    <p class="eyebrow">StaticQuasar931 Games</p>
+    <h1>GTA: San Andreas</h1>
+    <p class="subtitle">Browser edition</p>
+  </header>
+
+  <main class="layout">
+    <section class="player-card" aria-label="GTA San Andreas player">
+      <div class="screen-frame">
+        <canvas id="outputCanvas" width="640" height="480" tabindex="0" aria-label="Game display"></canvas>
+        <div id="loading-overlay" class="loading-overlay">
+          <div class="loading-panel">
+            <p id="stage-label" class="stage-label">Ready</p>
+            <h2 id="status-heading">Download and play</h2>
+            <p id="status-detail">The game downloads once, is rebuilt on this device, and is reused on later visits.</p>
+            <div class="progress-track" aria-hidden="true"><div id="progress-bar" class="progress-bar"></div></div>
+            <div class="progress-meta">
+              <span id="progress-text">0%</span>
+              <span id="size-text">4.19 GB total</span>
+              <span id="eta-text">Ready</span>
+            </div>
+            <button id="primary-button" type="button">Download game and play</button>
+            <button id="retry-button" class="secondary" type="button" hidden>Try again</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="runtime-row">
+        <div id="root"><span>Starting emulator...</span></div>
+        <button id="fullscreen-button" class="secondary small" type="button">Fullscreen</button>
+      </div>
+    </section>
+
+    <aside class="info-card">
+      <h2>Controls</h2>
+      <div class="controls-grid">
+        <span>D-pad</span><kbd>Arrow keys</kbd>
+        <span>Left stick</span><kbd>F H T G</kbd>
+        <span>Right stick</span><kbd>J L I K</kbd>
+        <span>Square / Cross</span><kbd>A / Z</kbd>
+        <span>Triangle / Circle</span><kbd>S / X</kbd>
+        <span>Start / Select</span><kbd>Enter / Backspace</kbd>
+        <span>L1 L2 L3</span><kbd>1 2 3</kbd>
+        <span>R1 R2 R3</span><kbd>8 9 0</kbd>
+      </div>
+
+      <h2>How it works</h2>
+      <ol>
+        <li>226 verified pieces download from jsDelivr.</li>
+        <li>The browser writes one ISO into private on-device storage.</li>
+        <li>The completed ISO is reused instead of downloaded again.</li>
+      </ol>
+      <p class="fine-print">Keep this tab open during the first download. A recent 64-bit Chrome, Edge, or Firefox browser and at least 5 GB of available browser storage are required.</p>
+    </aside>
+  </main>
+
+  <noscript>This player requires JavaScript.</noscript>
+  <script src="main.js?v=21"></script>
+  <script src="app.js?v=21"></script>
 </body>
 </html>
