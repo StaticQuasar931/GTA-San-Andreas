@@ -7,10 +7,11 @@ This repository hosts a standalone GitHub Pages browser build powered by the ope
 1. The page initializes the included Play!.js WebAssembly runtime.
 2. It downloads `SplitFiles/gtasan.ISO.001` through `gtasan.ISO.226` from the same GitHub Pages project. No third-party CDN is used.
 3. Every piece is checked against its expected byte length and SHA-256 hash in `iso-parts.json`.
-4. A dedicated storage worker writes and flushes verified pieces into one ISO in Origin Private File System storage.
-5. Interrupted downloads resume at the last fully verified piece.
-6. The completed ISO is identified by its total byte length and manifest fingerprint, then reused on later visits.
-7. The loader keeps the artwork visible until Play!.js reports real game frames.
+4. An inline storage worker writes and flushes verified pieces into one ISO in Origin Private File System storage, so no separate worker file can be missed during deployment.
+5. Firefox and browsers without synchronous OPFS automatically use a compatible writable-stream path.
+6. Interrupted downloads resume at the last fully verified piece.
+7. The completed ISO is identified by its total byte length and manifest fingerprint, then reused on later visits.
+8. The loader keeps the artwork visible until Play!.js reports real game frames.
 
 The browser requests persistent storage when available. Emulator memory-card files under Play!'s virtual filesystem are mirrored to IndexedDB after the game starts, when the page is hidden, and when the page closes.
 

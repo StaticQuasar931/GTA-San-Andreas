@@ -122,10 +122,49 @@
     return total;
   }
 
-  async function createIsoWriter() {
-    const worker = new Worker("./iso-worker.js?v=30");
+  async function createIsoWriter(fileHandle) {
+    const workerSource = `
+      "use strict";
+      let accessHandle = null;
+      self.onmessage = async event => {
+        const { id, type } = event.data;
+        try {
+          let value = null;
+          if (type === "open") {
+            if (!navigator.storage?.getDirectory) throw new Error("OPFS is unavailable in this worker.");
+            const root = await navigator.storage.getDirectory();
+            const folder = await root.getDirectoryHandle(event.data.folder, { create: true });
+            const file = await folder.getFileHandle(event.data.file, { create: true });
+            if (typeof file.createSyncAccessHandle !== "function") throw new Error("Synchronous OPFS access is unavailable in this browser.");
+            accessHandle = await file.createSyncAccessHandle();
+            value = accessHandle.getSize();
+          } else if (type === "write") {
+            if (!accessHandle) throw new Error("The ISO storage file is not open.");
+            const bytes = new Uint8Array(event.data.bytes);
+            const written = accessHandle.write(bytes, { at: event.data.offset });
+            if (written !== bytes.byteLength) throw new Error("The browser wrote an incomplete ISO piece.");
+            accessHandle.flush();
+            value = written;
+          } else if (type === "truncate") {
+            if (!accessHandle) throw new Error("The ISO storage file is not open.");
+            accessHandle.truncate(event.data.size);
+            accessHandle.flush();
+          } else if (type === "close") {
+            accessHandle?.close();
+            accessHandle = null;
+          }
+          self.postMessage({ id, value });
+        } catch (error) {
+          self.postMessage({ id, error: error.message || String(error) });
+        }
+      };
+    `;
+    const workerUrl = URL.createObjectURL(new Blob([workerSource], { type: "application/javascript" }));
+    const worker = new Worker(workerUrl);
+    URL.revokeObjectURL(workerUrl);
     let sequence = 0;
     const pending = new Map();
+    let workerFailed = false;
     worker.onmessage = event => {
       const job = pending.get(event.data.id);
       if (!job) return;
@@ -134,7 +173,8 @@
       else job.resolve(event.data.value);
     };
     worker.onerror = event => {
-      for (const job of pending.values()) job.reject(new Error(event.message || "The storage worker stopped."));
+      workerFailed = true;
+      for (const job of pending.values()) job.reject(new Error(event.message || "The fast storage worker is unavailable."));
       pending.clear();
     };
     function send(type, value, transfer = []) {
@@ -144,15 +184,37 @@
         worker.postMessage({ id, type, ...value }, transfer);
       });
     }
-    await send("open", { folder: CACHE_FOLDER, file: CACHE_FILE });
-    return {
-      truncate: size => send("truncate", { size }),
-      write: (offset, bytes) => send("write", { offset, bytes }, [bytes.buffer]),
-      async close() {
-        await send("close", {});
-        worker.terminate();
+    try {
+      if (new URLSearchParams(location.search).get("storage") === "compat") {
+        throw new Error("Compatibility storage was requested for this test.");
       }
-    };
+      await Promise.race([
+        send("open", { folder: CACHE_FOLDER, file: CACHE_FILE }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("The fast storage worker timed out.")), 10000))
+      ]);
+      return {
+        mode: "fast resumable storage",
+        truncate: size => send("truncate", { size }),
+        write: (offset, bytes) => send("write", { offset, bytes }, [bytes.buffer]),
+        async close() {
+          if (!workerFailed) await send("close", {}).catch(() => {});
+          worker.terminate();
+        }
+      };
+    } catch (error) {
+      worker.terminate();
+      console.warn("Fast OPFS writer unavailable, using compatibility storage:", error.message);
+      const writable = await fileHandle.createWritable({ keepExistingData: true });
+      return {
+        mode: "Firefox compatibility storage",
+        truncate: size => writable.truncate(size),
+        async write(offset, bytes) {
+          await writable.seek(offset);
+          await writable.write(bytes);
+        },
+        close: () => writable.close()
+      };
+    }
   }
 
   async function prepareIso() {
@@ -189,7 +251,7 @@
       let nextIndex = resume?.fingerprint === fingerprint ? Number(resume.nextIndex) : 0;
       if (!Number.isInteger(nextIndex) || nextIndex < 0 || nextIndex > manifest.partCount) nextIndex = 0;
       let loaded = prefixBytes(manifest.parts, nextIndex);
-      const writer = await createIsoWriter();
+      const writer = await createIsoWriter(cache.handle);
       if (cachedFile.size !== loaded) {
         nextIndex = 0;
         loaded = 0;
@@ -197,6 +259,7 @@
       }
 
       setStage(nextIndex ? "Resuming download" : "Downloading", "Building GTA: San Andreas", "Every piece is checked, then saved directly on this device. You may switch tabs, but do not close this page.");
+      $("storage-status").textContent = writer.mode;
       const startedAt = performance.now() - (loaded ? 1000 : 0);
       setProgress(loaded, manifest.totalBytes, startedAt, true);
       try {
