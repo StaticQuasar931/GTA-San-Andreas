@@ -2,30 +2,34 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0d100b">
-  <meta name="description" content="Play GTA: San Andreas in a browser with an automatically downloaded and locally cached disc image.">
+  <meta name="description" content="Play GTA: San Andreas in a browser with a verified, locally cached disc image.">
   <title>GTA: San Andreas Browser Edition</title>
-  <link rel="stylesheet" href="main.css?v=20">
-  <link rel="stylesheet" href="app.css?v=20">
+  <link rel="stylesheet" href="main.css?v=30">
+  <link rel="stylesheet" href="app.css?v=30">
   <script>
     (async function () {
       if (!("serviceWorker" in navigator)) return;
       try {
-        await navigator.serviceWorker.register("./coi-serviceworker.js?v=20");
+        const registration = await navigator.serviceWorker.register("./coi-serviceworker.js?v=30");
+        await registration.update();
         await navigator.serviceWorker.ready;
-        if (!navigator.serviceWorker.controller && !sessionStorage.getItem("coi-first-reload")) {
-          sessionStorage.setItem("coi-first-reload", "1");
+        if (sessionStorage.getItem("coi-loader-version") !== "30") {
+          sessionStorage.setItem("coi-loader-version", "30");
           location.reload();
           return;
         }
-        if (!crossOriginIsolated && navigator.serviceWorker.controller && !sessionStorage.getItem("coi-isolation-reload")) {
-          sessionStorage.setItem("coi-isolation-reload", "1");
+        if (!navigator.serviceWorker.controller && !sessionStorage.getItem("coi-v30-reload")) {
+          sessionStorage.setItem("coi-v30-reload", "1");
+          location.reload();
+          return;
+        }
+        if (!crossOriginIsolated && navigator.serviceWorker.controller && !sessionStorage.getItem("coi-v30-isolation")) {
+          sessionStorage.setItem("coi-v30-isolation", "1");
           location.reload();
         }
-      } catch (error) {
-        window.__coiError = error;
-      }
+      } catch (error) { window.__coiError = error; }
     })();
   </script>
 </head>
@@ -41,25 +45,36 @@
       <div class="screen-frame">
         <canvas id="outputCanvas" width="640" height="480" tabindex="0" aria-label="Game display"></canvas>
         <div id="loading-overlay" class="loading-overlay">
+          <img id="loading-artwork" class="loading-artwork" alt="GTA San Andreas artwork">
+          <div class="art-shade"></div>
           <div class="loading-panel">
-            <p id="stage-label" class="stage-label">Ready</p>
-            <h2 id="status-heading">Download and play</h2>
-            <p id="status-detail">The game downloads once, is rebuilt on this device, and is reused on later visits.</p>
+            <p id="stage-label" class="stage-label">Welcome</p>
+            <h2 id="status-heading">Download once. Play anytime.</h2>
+            <p id="status-detail">The verified game is saved privately on this device and reused on later visits.</p>
             <div class="progress-track" aria-hidden="true"><div id="progress-bar" class="progress-bar"></div></div>
             <div class="progress-meta">
               <span id="progress-text">0%</span>
               <span id="size-text">4.19 GB total</span>
               <span id="eta-text">Ready</span>
             </div>
-            <button id="primary-button" type="button">Download game and play</button>
+            <button id="primary-button" type="button">Download game</button>
             <button id="retry-button" class="secondary" type="button" hidden>Try again</button>
+          </div>
+          <div class="loader-game" aria-label="Loading screen mini game">
+            <span>Tag CJ while you wait</span>
+            <strong>Score: <span id="loader-score">0</span></strong>
+            <button id="loader-target" type="button" aria-label="Tag CJ">CJ</button>
           </div>
         </div>
       </div>
 
       <div class="runtime-row">
-        <div id="root"><span>Starting emulator...</span></div>
+        <div id="root"><span>Initializing emulator...</span></div>
         <button id="fullscreen-button" class="secondary small" type="button">Fullscreen</button>
+      </div>
+      <div class="status-row">
+        <span id="storage-status">Checking storage</span>
+        <span id="save-status">Local saves ready</span>
       </div>
     </section>
 
@@ -78,16 +93,17 @@
 
       <h2>How it works</h2>
       <ol>
-        <li>226 verified pieces download from jsDelivr.</li>
-        <li>The browser writes one ISO into private on-device storage.</li>
-        <li>The completed ISO is reused instead of downloaded again.</li>
+        <li>226 same-site pieces download directly from this GitHub Pages project.</li>
+        <li>Every piece is checked with SHA-256 before it is saved.</li>
+        <li>An interrupted download resumes at its last completed piece.</li>
+        <li>The completed ISO and emulator saves stay on this device.</li>
       </ol>
-      <p class="fine-print">Keep this tab open during the first download. A recent 64-bit Chrome, Edge, or Firefox browser and at least 5 GB of available browser storage are required.</p>
+      <p class="fine-print">Keep this page open during the first download. Switching tabs is fine. Chrome may reduce visual updates in a background tab, but downloading continues. A recent 64-bit Chrome or Edge browser and at least 5 GB of free browser storage are required.</p>
     </aside>
   </main>
 
   <noscript>This player requires JavaScript.</noscript>
-  <script src="main.js?v=21"></script>
-  <script src="app.js?v=21"></script>
+  <script src="main.js?v=30"></script>
+  <script src="app.js?v=30"></script>
 </body>
 </html>
