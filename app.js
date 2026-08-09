@@ -37,6 +37,7 @@
   const etaText = $("eta-text");
   const primaryButton = $("primary-button");
   const retryButton = $("retry-button");
+  const copyErrorButton = $("copy-error-button");
   const canvas = $("outputCanvas");
   const scoreText = $("loader-score");
   const target = $("loader-target");
@@ -46,6 +47,7 @@
   let score = Number(localStorage.getItem("gtasa-loader-score") || 0);
   let lastUiUpdate = 0;
   let saveTimer = 0;
+  let lastDiagnostics = "";
 
   function humanBytes(bytes) {
     if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
@@ -66,6 +68,35 @@
     heading.textContent = title;
     detail.textContent = message;
   }
+
+  function errorDetails(code, error) {
+    const message = error?.message || String(error || "Unknown error");
+    const finalCode = error?.code || code;
+    lastDiagnostics = [
+      `Code: ${finalCode}`,
+      `Message: ${message}`,
+      `Time: ${new Date().toISOString()}`,
+      `URL: ${location.href}`,
+      `Browser: ${navigator.userAgent}`,
+      `Cross-origin isolated: ${window.crossOriginIsolated}`,
+      `SharedArrayBuffer: ${typeof SharedArrayBuffer !== "undefined"}`,
+      `Service worker controlled: ${Boolean(navigator.serviceWorker?.controller)}`,
+      `Play module exposed: ${Boolean(window.__playModule)}`,
+      `Play runtime error: ${window.__playRuntimeError?.message || "none"}`,
+      error?.stack ? `Stack: ${error.stack}` : ""
+    ].filter(Boolean).join("\n");
+    copyErrorButton.hidden = false;
+    return `[${finalCode}] ${message}`;
+  }
+
+  window.addEventListener("error", event => {
+    const text = `${event.message || ""} ${event.error?.message || ""}`;
+    if (/worker sent an error|PLAY_PTHREAD_WORKER_ERROR|ErrorEvent/i.test(text)) {
+      const runtimeError = new Error(text.trim() || "The Play!.js pthread worker failed without browser details.");
+      runtimeError.code = "PLAY_PTHREAD_WORKER_ERROR";
+      window.__playRuntimeError = runtimeError;
+    }
+  });
 
   function setProgress(loaded, total, startedAt, force) {
     const now = performance.now();
@@ -222,6 +253,7 @@
     running = true;
     panel.classList.remove("error");
     retryButton.hidden = true;
+    copyErrorButton.hidden = true;
     primaryButton.disabled = true;
     primaryButton.textContent = "Preparing...";
     setStage("Checking", "Checking your local game", "Reading the manifest and confirming browser storage.");
@@ -285,7 +317,7 @@
       showPlayButton(false);
     } catch (error) {
       panel.classList.add("error");
-      setStage("Stopped", "The game could not be prepared", error.message);
+      setStage("Stopped", "The game could not be prepared", errorDetails("ISO_PREPARE_FAILED", error));
       primaryButton.hidden = true;
       retryButton.hidden = false;
       running = false;
@@ -311,7 +343,12 @@
       const deadline = Date.now() + 60000;
       const check = () => {
         if (window.__playModule?.FS) resolve(window.__playModule);
-        else if (Date.now() > deadline) reject(new Error("The emulator runtime did not initialize."));
+        else if (window.__playRuntimeError) reject(window.__playRuntimeError);
+        else if (Date.now() > deadline) {
+          const error = new Error("The emulator runtime did not initialize within 60 seconds.");
+          error.code = "PLAY_RUNTIME_TIMEOUT";
+          reject(error);
+        }
         else setTimeout(check, 100);
       };
       check();
@@ -410,6 +447,7 @@
   async function launchGame() {
     if (!preparedFile || running) return;
     running = true;
+    copyErrorButton.hidden = true;
     primaryButton.disabled = true;
     primaryButton.textContent = "Starting...";
     setStage("Loading saves", "Starting the emulator", "Restoring local game data before the disc starts.");
@@ -428,7 +466,7 @@
       running = false;
     } catch (error) {
       panel.classList.add("error");
-      setStage("Launch stopped", "The emulator could not start", error.message);
+      setStage("Launch stopped", "The emulator could not start", errorDetails("PLAY_LAUNCH_FAILED", error));
       primaryButton.disabled = false;
       primaryButton.textContent = "Try starting again";
       running = false;
@@ -468,6 +506,14 @@
     retryButton.hidden = true;
     running = false;
     prepareIso();
+  });
+  copyErrorButton.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(lastDiagnostics);
+      copyErrorButton.textContent = "Diagnostics copied";
+    } catch {
+      copyErrorButton.textContent = "Copy was blocked";
+    }
   });
 
   $("fullscreen-button").addEventListener("click", async () => {

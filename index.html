@@ -6,17 +6,17 @@
   <meta name="theme-color" content="#0d100b">
   <meta name="description" content="Play GTA: San Andreas in a browser with a verified, locally cached disc image.">
   <title>GTA: San Andreas Browser Edition</title>
-  <link rel="stylesheet" href="main.css?v=31">
-  <link rel="stylesheet" href="app.css?v=31">
+  <link rel="stylesheet" href="main.css?v=32">
+  <link rel="stylesheet" href="app.css?v=32">
   <script>
     (async function () {
       if (!("serviceWorker" in navigator)) return;
       try {
-        const registration = await navigator.serviceWorker.register("./coi-serviceworker.js?v=31");
+        const registration = await navigator.serviceWorker.register("./coi-serviceworker.js?v=32");
         await registration.update();
         await navigator.serviceWorker.ready;
-        if (sessionStorage.getItem("coi-loader-version") !== "31") {
-          sessionStorage.setItem("coi-loader-version", "31");
+        if (sessionStorage.getItem("coi-loader-version") !== "32") {
+          sessionStorage.setItem("coi-loader-version", "32");
           location.reload();
           return;
         }
@@ -59,6 +59,7 @@
             </div>
             <button id="primary-button" type="button">Download game</button>
             <button id="retry-button" class="secondary" type="button" hidden>Try again</button>
+            <button id="copy-error-button" class="secondary" type="button" hidden>Copy diagnostics</button>
           </div>
           <div class="loader-game" aria-label="Loading screen mini game">
             <span>Tag CJ while you wait</span>
@@ -103,7 +104,7 @@
   </main>
 
   <noscript>This player requires JavaScript.</noscript>
-  <script src="main.js?v=31"></script>
-  <script src="app.js?v=31"></script>
+  <script src="main.js?v=32"></script>
+  <script src="app.js?v=32"></script>
 </body>
 </html>

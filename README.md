@@ -13,6 +13,8 @@ This repository hosts a standalone GitHub Pages browser build powered by the ope
 7. The completed ISO is identified by its total byte length and manifest fingerprint, then reused on later visits.
 8. The loader keeps the artwork visible until Play!.js reports real game frames.
 
+Service-worker version 32 applies cross-origin isolation to both the page and Play!.js's Emscripten pthread worker. Runtime failures display stable diagnostic codes and a copyable environment report instead of waiting silently.
+
 The browser requests persistent storage when available. Emulator memory-card files under Play!'s virtual filesystem are mirrored to IndexedDB after the game starts, when the page is hidden, and when the page closes.
 
 ## Requirements
